@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import { isAbsolute, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { basename, dirname, isAbsolute, resolve } from 'node:path';
 
 const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
@@ -16,9 +17,28 @@ function getDatabaseUrl(): string {
   const databasePath = databaseUrl.slice('file:'.length);
   if (isAbsolute(databasePath)) return databaseUrl;
 
-  // Prisma CLI resolves this path from prisma/schema.prisma; pin the client to the same directory.
-  const absolutePath = resolve(process.cwd(), 'prisma', databasePath);
-  return `file:${absolutePath.replace(/\\/g, '/')}`;
+  // Standalone Next.js changes cwd, so locate the schema to match Prisma CLI path resolution.
+  let directory = process.cwd();
+  if (
+    basename(directory) === 'standalone' &&
+    basename(dirname(directory)) === '.next'
+  ) {
+    directory = resolve(directory, '..', '..');
+  }
+
+  while (true) {
+    const prismaDirectory = resolve(directory, 'prisma');
+    if (existsSync(resolve(prismaDirectory, 'schema.prisma'))) {
+      const absolutePath = resolve(prismaDirectory, databasePath);
+      return `file:${absolutePath.replace(/\\/g, '/')}`;
+    }
+
+    const parent = dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+
+  throw new Error('Não foi possível localizar prisma/schema.prisma.');
 }
 
 export const prisma =
