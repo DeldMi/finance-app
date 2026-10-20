@@ -1,0 +1,30 @@
+# dependências
+node_modules/
+.pnpm-store
+
+# compilação Next.js
+.next/
+out/
+build/
+dist/
+
+# banco de dados local SQLite
+prisma/*.db
+prisma/*.db-journal
+*.db
+*.db-journal
+
+# variáveis de ambiente
+.env
+.env.local
+.env.production
+.env.*
+!.env.example
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+.docker/
