@@ -52,6 +52,8 @@ npm run db:migrate   # aplicar migrações locais
 npm run db:studio    # abrir Prisma Studio
 ```
 
+Admin pelo terminal: npm run admin:grant -- email@exemplo.com
+
 Detalhes de ambiente e produção estão em [Modo_Dev.md](./Modo_Dev.md) e
 [docs/DEPLOY.md](./docs/DEPLOY.md). O guia de uso está em
 [docs/GUIA_DO_USUARIO.md](./docs/GUIA_DO_USUARIO.md), a arquitetura em

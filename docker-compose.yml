@@ -11,7 +11,9 @@ services:
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
     volumes:
       - sqlite_data:/app/prisma
+      - backup_data:/bkp
     restart: unless-stopped
 
 volumes:
   sqlite_data:
+  backup_data:

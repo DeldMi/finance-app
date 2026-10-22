@@ -63,6 +63,7 @@ type AdminUser = {
   role: 'ADMIN' | 'USER' | 'BLOCKED';
   permissions: string;
 };
+type ServerBackupFile = { name: string; modifiedAt: string };
 
 type ReportModel = { name: string; html: string; css: string };
 type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
@@ -132,6 +133,15 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [backupTypes, setBackupTypes] = useState<string[]>(['transactions', 'cards', 'accounts', 'categories', 'shoppingLists']);
+  const [restoreFile, setRestoreFile] = useState<File | null>(null);
+  const [backupInterval, setBackupInterval] = useState('7');
+  const [backupRetention, setBackupRetention] = useState('5');
+  const [backupMessage, setBackupMessage] = useState('');
+  const [backupSettingsSaved, setBackupSettingsSaved] = useState(false);
+  const [serverBackupFiles, setServerBackupFiles] = useState<ServerBackupFile[]>([]);
+  const [selectedServerBackup, setSelectedServerBackup] = useState('');
+  const [backupServerPath, setBackupServerPath] = useState('/bkp');
   const [editing, setEditing] = useState<Entry | null>(null);
   const [editingSeriesGroup, setEditingSeriesGroup] = useState<string | null>(null);
   const [description, setDescription] = useState('');
@@ -525,6 +535,101 @@ export default function DashboardPage() {
     await loadAdminUsers();
   }
 
+  async function createBackup(download = true) {
+    const response = await fetch('/api/backup');
+    const snapshot = await readJson(response);
+    if (!response.ok) throw new Error(snapshot.error || 'Não foi possível criar o backup.');
+    snapshot.data = Object.fromEntries(Object.entries(snapshot.data).filter(([key]) => backupTypes.includes(key)));
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    if (download) {
+      const url = URL.createObjectURL(blob); const link = document.createElement('a');
+      link.href = url; link.download = `meu-financeiro-backup-${new Date().toISOString().slice(0, 10)}.json`; link.click(); URL.revokeObjectURL(url);
+    }
+    return blob;
+  }
+
+  async function restoreBackup(snapshotOverride?: any) {
+    if (!restoreFile && !snapshotOverride) return;
+    if (!window.confirm('A restauração substituirá os dados selecionados da sua conta. Deseja continuar?')) return;
+    setBusy(true); setBackupMessage('');
+    try {
+      const snapshot = snapshotOverride || JSON.parse(await restoreFile!.text());
+      const selected = backupTypes.filter((key) => Array.isArray(snapshot?.data?.[key]));
+      if (!selected.length) throw new Error('O backup não contém nenhum dos tipos de dados selecionados.');
+      const response = await fetch('/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...snapshot, selected }) });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Não foi possível restaurar o backup.');
+      setBackupMessage('Backup restaurado.'); setRestoreFile(null); await refresh();
+    } catch (cause) { setBackupMessage(cause instanceof Error ? cause.message : 'Arquivo inválido.'); }
+    finally { setBusy(false); }
+  }
+
+  async function loadServerBackupFiles() {
+    setBackupMessage('');
+    try {
+      const response = await fetch(`/api/backup/files?directory=${encodeURIComponent(backupServerPath)}`);
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Não foi possível listar os backups.');
+      const files = result as ServerBackupFile[];
+      setServerBackupFiles(files);
+      setSelectedServerBackup((current) => files.some((file) => file.name === current) ? current : files[0]?.name || '');
+      if (!files.length) setBackupMessage('Não há backups automáticos nessa pasta para sua conta.');
+    } catch (cause) { setBackupMessage(cause instanceof Error ? cause.message : 'Não foi possível listar os backups.'); }
+  }
+
+  async function restoreServerBackup() {
+    if (!selectedServerBackup) return;
+    try {
+      const response = await fetch(`/api/backup/files/${encodeURIComponent(selectedServerBackup)}?directory=${encodeURIComponent(backupServerPath)}`);
+      const snapshot = await readJson(response);
+      if (!response.ok) throw new Error(snapshot.error || 'Não foi possível abrir o backup selecionado.');
+      await restoreBackup(snapshot);
+    } catch (cause) { setBackupMessage(cause instanceof Error ? cause.message : 'Não foi possível restaurar o backup.'); }
+  }
+
+  async function saveServerBackup() {
+    const blob = await createBackup(false);
+    const response = await fetch('/api/backup', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ directory: backupServerPath, retention: backupRetention, snapshot: JSON.parse(await blob.text()) }) });
+    const result = await readJson(response);
+    if (!response.ok) throw new Error(result.error || 'Could not write backup to server.');
+    setBackupMessage(`Backup saved to ${result.directory}/${result.fileName}`);
+  }
+
+  function saveBackupSettings() {
+    if (!backupTypes.length) {
+      setBackupMessage('Selecione ao menos um tipo de dado para incluir no backup.');
+      return;
+    }
+    if (!backupServerPath.trim() || !backupServerPath.startsWith('/') && !/^[A-Za-z]:[\\/]/.test(backupServerPath)) {
+      setBackupMessage('Informe um caminho absoluto, como /bkp.');
+      return;
+    }
+    localStorage.setItem('finance-backup-settings', JSON.stringify({ interval: backupInterval, retention: Math.max(1, Math.min(100, Number(backupRetention) || 1)), path: backupServerPath.trim(), types: backupTypes }));
+    setBackupServerPath(backupServerPath.trim());
+    setBackupSettingsSaved(true);
+    setBackupMessage('Configuração do backup automático salva.');
+  }
+
+  useEffect(() => {
+    if (!backupSettingsSaved || !backupServerPath || !backupInterval) return;
+    const key = 'finance-backup-last-run';
+    const run = async () => {
+      const previous = Number(localStorage.getItem(key) || 0);
+      if (Date.now() - previous < Number(backupInterval) * 86400000) return;
+      try {
+        await saveServerBackup();
+        localStorage.setItem(key, String(Date.now()));
+      } catch (cause) { setBackupMessage(cause instanceof Error ? cause.message : 'Automatic backup failed.'); }
+    };
+    void run(); const timer = window.setInterval(() => void run(), 60000);
+    return () => window.clearInterval(timer);
+  }, [backupSettingsSaved, backupServerPath, backupInterval, backupRetention, backupTypes]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('finance-backup-settings');
+    if (saved) try { const settings = JSON.parse(saved); if (['1', '7', '30'].includes(settings.interval)) setBackupInterval(settings.interval); if (Number.isInteger(settings.retention) && settings.retention >= 1 && settings.retention <= 100) setBackupRetention(String(settings.retention)); if (typeof settings.path === 'string') setBackupServerPath(settings.path); if (Array.isArray(settings.types)) setBackupTypes(settings.types.filter((item: string) => ['transactions', 'cards', 'accounts', 'categories', 'shoppingLists'].includes(item))); setBackupSettingsSaved(true); } catch { /* Ignore invalid local preferences. */ }
+  }, []);
+
   async function loadReportModels(): Promise<ReportModel[]> {
     const response = await fetch('/api/report-templates');
     const result = await readJson(response);
@@ -630,10 +735,8 @@ export default function DashboardPage() {
     aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>
   ))}
   <Link className="section-link" href="/dashboard/shopping">Planeje antes de comprar</Link>
-  {session?.user.role === 'ADMIN' && (
   <button className={`section-link ${tab === 'settings' ? 'section-link-active' : ''}`} type="button"
-  onClick={() => { setTab('settings'); void loadAdminUsers(); }}>Configurações</button>
-  )}
+  onClick={() => { setTab('settings'); if (session?.user.role === 'ADMIN') void loadAdminUsers(); }}>Configurações</button>
   </nav>
 
   {error && <p className="form-error" role="alert">{error}</p>}
@@ -928,7 +1031,15 @@ export default function DashboardPage() {
                               <EntryTable entries={visibleEntries} readOnly sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
                               </section>}
 
-                            {tab === 'settings' && session?.user.role === 'ADMIN' && <section className="panel">
+                            {tab === 'settings' && <div className="settings-layout">
+                            <section className="panel settings-panel">
+                              <div className="settings-heading"><div><h2 className="panel-title">Backup e restauração</h2><p className="panel-description">Escolha os dados que deseja salvar ou recuperar na sua conta.</p></div></div>
+                              <div className="settings-section"><h3 className="settings-section-title">Dados incluídos</h3><div className="backup-data-grid">{([['transactions', 'Lançamentos'], ['cards', 'Cartões'], ['accounts', 'Bancos e contas'], ['categories', 'Categorias'], ['shoppingLists', 'Listas de compras']] as const).map(([key, label]) => <label className="backup-option" key={key}><input type="checkbox" checked={backupTypes.includes(key)} onChange={(event) => { setBackupTypes((current) => event.target.checked ? [...current, key] : current.filter((item) => item !== key)); setBackupSettingsSaved(false); }} /><span>{label}</span></label>)}</div></div>
+                              <div className="settings-section"><h3 className="settings-section-title">Criar ou restaurar backup</h3><div className="backup-action-grid"><button className="button button-primary" type="button" disabled={!backupTypes.length || busy} onClick={() => void createBackup().catch((cause) => setBackupMessage(cause.message))}>Baixar backup no computador</button><Field label="Arquivo para restauracao"><input className="input backup-file-input" type="file" accept="application/json,.json" onChange={(event) => { setRestoreFile(event.target.files?.[0] || null); setSelectedServerBackup(''); }} /></Field><button className="button button-secondary" type="button" disabled={(!restoreFile && !selectedServerBackup) || !backupTypes.length || busy} onClick={() => void (selectedServerBackup ? restoreServerBackup() : restoreBackup())}>Restaurar dados selecionados</button></div>{session?.user.role === 'ADMIN' && <div className="backup-server-picker"><Field label="Backup automatico salvo no servidor"><select className="select" value={selectedServerBackup} onChange={(event) => { setSelectedServerBackup(event.target.value); if (event.target.value) setRestoreFile(null); }}><option value="">Selecione um backup salvo...</option>{serverBackupFiles.map((file) => <option key={file.name} value={file.name}>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(file.modifiedAt))} - {file.name}</option>)}</select></Field><button className="button button-secondary" type="button" onClick={() => void loadServerBackupFiles()}>Atualizar lista de backups</button></div>}</div>
+                              {session?.user.role === 'ADMIN' ? <div className="settings-section"><h3 className="settings-section-title">Backup automatico no servidor</h3><p className="panel-description settings-help">Informe um caminho absoluto no servidor ou container, como /bkp ou /var/bkp. O processo precisa ter permissao para gravar.</p><div className="backup-schedule-grid"><Field label="Criar backup a cada"><select className="select" value={backupInterval} onChange={(event) => { setBackupInterval(event.target.value); setBackupSettingsSaved(false); }}><option value="1">1 dia</option><option value="7">7 dias</option><option value="30">30 dias</option></select></Field><Field label="Manter ate"><input className="input" type="number" min="1" max="100" value={backupRetention} onChange={(event) => { setBackupRetention(event.target.value); setBackupSettingsSaved(false); }} /></Field><Field label="Caminho absoluto no servidor"><input className="input" type="text" value={backupServerPath} placeholder="/bkp" onChange={(event) => { setBackupServerPath(event.target.value); setBackupSettingsSaved(false); setSelectedServerBackup(''); setServerBackupFiles([]); }} /></Field></div><div className="backup-config-actions"><button className="button button-primary" type="button" onClick={saveBackupSettings}>Salvar configuracao</button><button className="button button-secondary" type="button" disabled={!backupSettingsSaved} onClick={() => void saveServerBackup().catch((cause) => setBackupMessage(cause.message))}>Gravar backup agora</button></div>{backupMessage && <p className="backup-status" role="status">{backupMessage}</p>}<p className="backup-path-help">No Docker Compose, /bkp usa volume persistente. O backup automatico roda conforme a frequencia salva enquanto o painel estiver aberto.</p></div> : <div className="settings-section"><h3 className="settings-section-title">Backup automatico no servidor</h3><p className="panel-description">A gravacao em caminhos do servidor fica disponivel para administradores. Voce ainda pode baixar backups manualmente.</p></div>}
+                              {backupMessage && <p className="backup-status" role="status">{backupMessage}</p>}
+                            </section>
+                            {session?.user.role === 'ADMIN' && <section className="panel">
                               <h2 className="panel-title">Usuários e permissões</h2>
                               <p className="panel-description">Novas contas começam bloqueadas. Libere somente as ações necessárias.</p>{adminUsers.map((user) => <div className="user-permission-row" key={user.id}>
                                 <div>
@@ -946,6 +1057,7 @@ export default function DashboardPage() {
                                   </div>)}<p className="panel-description">Admin pelo terminal: <code>npm run admin:grant -- email@exemplo.com</code>
                                   </p>
                                 </section>}
+                            </div>}
 
                               {entryModalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setEntryModalOpen(false); resetForm(); } }}>
                                 <section className="modal-card entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
