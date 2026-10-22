@@ -116,6 +116,7 @@ async function readJson(response: Response) {
 
 export default function DashboardPage() {
   const { data: session } = useSession();
+  const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [tab, setTab] = useState<Tab>('overview');
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
@@ -161,6 +162,7 @@ export default function DashboardPage() {
   const [autoDebit, setAutoDebit] = useState(false);
   const [isSubscription, setIsSubscription] = useState(false);
   const [notes, setNotes] = useState('');
+
   const [cardName, setCardName] = useState('');
   const [cardBrand, setCardBrand] = useState('');
   const [lastFour, setLastFour] = useState('');
@@ -191,6 +193,13 @@ export default function DashboardPage() {
   const [quickCategoryName, setQuickCategoryName] = useState('');
   const [quickCategoryDescription, setQuickCategoryDescription] = useState('');
   const [showQuickCategory, setShowQuickCategory] = useState(false);
+
+  useEffect(() => {
+    const updateClock = () => setCurrentTime(new Date());
+    updateClock();
+    const timer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const categories = useMemo(() => {
     const matching = allCategories.filter(item => item.entity === 'ALL' || item.entity === entity).sort((a, b) => a.entity === entity ? 1 : b.entity === entity ? -1 : 0);
@@ -716,6 +725,11 @@ export default function DashboardPage() {
           </div>
         </div>
       <div className="header-actions">
+        <div className="dashboard-clock" aria-label="Data e hora atuais">
+          <span>Agora</span>
+          <strong>{currentTime ? new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(currentTime) : '--'}</strong>
+          <time>{currentTime ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(currentTime) : '--:--:--'}</time>
+        </div>
         <div className="segmented-control" aria-label="Filtrar por perfil">
           {([['ALL', 'Geral'], ['PHYSICAL', 'Pessoal · PF'], ['LEGAL', 'Empresa · PJ']] as const).map(([value, label]) => (
           <button key={value} type="button" className="segment-button" aria-pressed={filterEntity === value}
@@ -1261,6 +1275,12 @@ function FilterPanel({
   categories: string[]; description: string; setDescription: (value: string) => void;
   onClear: () => void;
 }) {
+  const [monthText, setMonthText] = useState(month ? `${month.slice(5, 7)}/${month.slice(2, 4)}` : '');
+
+  useEffect(() => {
+    setMonthText(month ? `${month.slice(5, 7)}/${month.slice(2, 4)}` : '');
+  }, [month]);
+
   return (
     <section className="panel filter-panel" aria-label="Filtros dos lançamentos">
       <div className="panel-heading">
@@ -1271,7 +1291,7 @@ function FilterPanel({
         <button type="button" className="button button-secondary" onClick={onClear}>Limpar filtros</button>
       </div>
       <div className="filter-grid">
-        <Field label="Mês"><input className="input" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></Field>
+        <Field label="Mês (MM/AA)"><input className="input" type="text" inputMode="numeric" autoComplete="off" maxLength={5} placeholder="10/26" value={monthText} onChange={(event) => { const value = event.target.value.replace(/[^\d/]/g, '').slice(0, 5); setMonthText(value); const match = /^(0[1-9]|1[0-2])\/(\d{2})$/.exec(value); if (match) setMonth(`20${match[2]}-${match[1]}`); else if (!value) setMonth(''); }} /></Field>
         <Field label="Data inicial"><input className="input" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></Field>
         <Field label="Data final"><input className="input" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></Field>
         <Field label="Situação"><select className="select" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todas</option><option value="PAID">Pago / recebido</option><option value="PENDING">Pendente</option></select></Field>

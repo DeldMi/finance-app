@@ -727,6 +727,8 @@ a:focus-visible {
     flex-direction: column;
   }
 
+  .dashboard-clock { width: 100%; }
+
   .segmented-control {
     max-width: 100%;
     overflow-x: auto;
@@ -1080,6 +1082,22 @@ input[type="radio"] {
   line-height: 1.25;
   text-align: center;
 }
+
+.dashboard-clock {
+  display: grid;
+  min-width: 205px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 11px;
+  background: var(--color-surface);
+  line-height: 1.25;
+}
+.dashboard-clock span { grid-column: 1 / -1; color: var(--color-muted); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.dashboard-clock strong { color: var(--color-ink); font-size: 12px; font-weight: 700; text-transform: capitalize; }
+.dashboard-clock time { color: var(--color-brand-dark); font-size: 13px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 .row-actions { align-items: center; }
 .data-table th,
