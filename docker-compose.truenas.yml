@@ -12,7 +12,7 @@ services:
       DATABASE_URL: file:/app/prisma/prod.db
       FINANCE_DATABASE_DIR: /app/prisma/user-finances
       NEXTAUTH_SECRET: "TROQUE_POR_UM_SEGREDO_ALEATORIO_LONGO"
-      NEXTAUTH_URL: "http://IP_DO_TRUENAS:30080"
+      NEXTAUTH_URL: "http://172.31.255.2:30080"
     volumes:
-      - /mnt/POOL/apps/finance-app/data:/app/prisma
-      - /mnt/POOL/apps/finance-app/backups:/bkp
+      - /mnt/Casa/apps/finance-app/data:/app/prisma
+      - /mnt/Casa/apps/finance-app/backups:/bkp

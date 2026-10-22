@@ -2,6 +2,13 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
+# Next.js importa algumas rotas durante a compilação. Este caminho temporário
+# permite inicializar o Prisma sem apontar para o banco persistente da aplicação.
+ENV DATABASE_URL=file:/tmp/finance-build.db
+ENV FINANCE_DATABASE_DIR=/tmp/finance-build-user-finances
+
+RUN apk add --no-cache openssl
+
 COPY package*.json ./
 COPY prisma ./prisma/
 
@@ -15,6 +22,8 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+RUN apk add --no-cache openssl
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./

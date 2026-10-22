@@ -21,6 +21,7 @@ prisma/*.db-journal
 .env.production
 .env.*
 !.env.example
+docker-compose.truenas.yml
 
 # logs
 npm-debug.log*
