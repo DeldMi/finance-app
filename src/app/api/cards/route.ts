@@ -7,7 +7,11 @@ async function userId() { const session = await getServerSession(authOptions); r
 export async function GET() {
   const id = await userId();
   if (!id) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
-  return NextResponse.json(await prisma.paymentCard.findMany({ where: { userId: id }, orderBy: { name: 'asc' } }));
+  try {
+    return NextResponse.json(await prisma.paymentCard.findMany({ where: { userId: id }, orderBy: { name: 'asc' } }));
+  } catch {
+    return NextResponse.json({ error: 'Erro ao buscar cartões. Verifique se as migrações do banco foram aplicadas.' }, { status: 500 });
+  }
 }
 export async function POST(request: Request) {
   const id = await userId();

@@ -12,6 +12,13 @@ const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR').format(new Date(value)) : '—';
 const isoToday = new Date().toISOString().slice(0, 10);
 
+async function readJson(response: Response) {
+  const body = await response.text();
+  if (!body) throw new Error(`O servidor retornou uma resposta vazia (HTTP ${response.status}).`);
+  try { return JSON.parse(body) as any; }
+  catch { throw new Error(`O servidor retornou uma resposta inválida (HTTP ${response.status}).`); }
+}
+
 export default function DashboardPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [filterEntity, setFilterEntity] = useState<'ALL' | EntityType>('ALL');
@@ -43,7 +50,7 @@ export default function DashboardPage() {
     setLoading(true); setError('');
     try {
       const [entriesResponse, cardsResponse] = await Promise.all([fetch('/api/transactions'), fetch('/api/cards')]);
-      const [entryData, cardData] = await Promise.all([entriesResponse.json(), cardsResponse.json()]);
+      const [entryData, cardData] = await Promise.all([readJson(entriesResponse), readJson(cardsResponse)]);
       if (!entriesResponse.ok) throw new Error(entryData.error || 'Não foi possível carregar os lançamentos.');
       if (!cardsResponse.ok) throw new Error(cardData.error || 'Não foi possível carregar os cartões.');
       setEntries(entryData); setCards(cardData);
