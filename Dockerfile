@@ -28,11 +28,13 @@ RUN apk add --no-cache openssl
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/prisma ./prisma
+# Keep the Prisma schema and migrations outside /app/prisma, which is mounted
+# as persistent data by the TrueNAS Compose configuration.
+COPY --from=builder /app/prisma ./prisma-schema
 COPY --from=builder /app/node_modules ./node_modules
 
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
