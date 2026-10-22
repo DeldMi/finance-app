@@ -6,6 +6,19 @@ import { prisma } from '@/lib/prisma';
 type Context = { params: { id: string } };
 async function owner() { const session = await getServerSession(authOptions); return session?.user?.id; }
 
+export async function PATCH(request: Request, { params }: Context) {
+  const userId = await owner();
+  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  let body: unknown;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
+  if (!body || typeof body !== 'object' || !('status' in body) || !['PAID', 'PENDING'].includes(String(body.status))) return NextResponse.json({ error: 'Situação inválida.' }, { status: 400 });
+  try {
+    const status = String(body.status);
+    const result = await prisma.transaction.updateMany({ where: { id: params.id, userId }, data: { status, paidAt: status === 'PAID' ? new Date() : null } });
+    return result.count ? NextResponse.json({ success: true }) : NextResponse.json({ error: 'Lançamento não encontrado.' }, { status: 404 });
+  } catch { return NextResponse.json({ error: 'Erro ao atualizar a situação.' }, { status: 500 }); }
+}
+
 export async function PUT(request: Request, { params }: Context) {
   const userId = await owner();
   if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });

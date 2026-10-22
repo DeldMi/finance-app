@@ -16,6 +16,17 @@ model User {
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
   cards        PaymentCard[]
+  categories   Category[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String   @default("")
+  createdAt   DateTime @default(now())
+  @@unique([userId, name])
 }
 
 model PaymentCard {
@@ -47,6 +58,8 @@ model Transaction {
   paidAt      DateTime?
   status      String   @default("PAID")
   recurrence  String?
+  recurrenceGroup String?
+  recurrenceEndDate DateTime?
   installmentGroup String?
   installmentNumber Int?
   installmentTotal Int?

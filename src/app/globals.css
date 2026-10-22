@@ -211,6 +211,15 @@ a:focus-visible {
 .section-link { min-height: 38px; padding: 8px 16px; border: 0; border-radius: 9px; color: var(--color-muted); background: transparent; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .section-link-active { color: var(--color-brand-dark); background: var(--color-brand-soft); }
 .form-grid-expanded { grid-template-columns: repeat(4, minmax(130px, 1fr)); }
+.filter-grid { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 12px; }
+.filter-panel { padding: 18px 20px; }
+.filter-panel .panel-heading { margin-bottom: 12px; }
+.sort-button { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; font-weight: inherit; letter-spacing: inherit; text-transform: inherit; white-space: nowrap; }
+.sort-button:hover { color: var(--color-brand); }
+.category-search { width: min(100%, 260px); }
+.quick-category-form { margin-top: 18px; padding: 16px; border: 1px solid var(--color-line); border-radius: 12px; background: #f8fbf9; }
+.quick-category-form > strong { display: block; margin-bottom: 12px; }
+.inline-field { display: flex; gap: 6px; }
 .overview-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .category-row { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid #edf1ee; color: #405047; font-size: 13px; }
 .category-row:last-child { border-bottom: 0; }
@@ -637,6 +646,7 @@ a:focus-visible {
 @media (max-width: 900px) {
   .summary-grid-wide { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .form-grid-expanded { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -684,6 +694,7 @@ a:focus-visible {
   .summary-grid-wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-columns { grid-template-columns: 1fr; }
   .form-grid-expanded { grid-template-columns: 1fr 1fr; }
+  .filter-grid { grid-template-columns: 1fr 1fr; }
   .form-grid-expanded > :first-child { grid-column: 1 / -1; }
   .row-actions { flex-direction: column; }
 
