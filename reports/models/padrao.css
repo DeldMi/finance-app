@@ -1,0 +1,14 @@
+﻿:root { color-scheme: light; font-family: Arial, sans-serif; color: #18251f; }
+body { max-width: 1100px; margin: 32px auto; padding: 0 24px; }
+header { border-bottom: 2px solid #176b4d; padding-bottom: 18px; }
+.eyebrow { color: #176b4d; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+h1 { margin-bottom: 8px; }
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
+.totals article { border: 1px solid #dce5de; border-radius: 10px; padding: 16px; }
+.totals span, .totals strong { display: block; }
+.totals strong { margin-top: 8px; font-size: 1.4rem; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px; border-bottom: 1px solid #dce5de; text-align: left; }
+th:last-child, td:last-child { text-align: right; }
+footer { margin-top: 28px; color: #68766e; font-size: .85rem; }
+@media print { body { margin: 0 auto; } }

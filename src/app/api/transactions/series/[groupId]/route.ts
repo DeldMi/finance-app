@@ -1,15 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, TRANSACTION_TYPES, type EntityType, type TransactionType } from '@/lib/types';
 
 type Context = { params: { groupId: string } };
-async function getUserId() { const session = await getServerSession(authOptions); return session?.user?.id; }
-
 export async function PUT(request: Request, { params }: Context) {
-  const userId = await getUserId();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('edit');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
   const description = typeof body.description === 'string' ? body.description.trim() : '';
@@ -38,8 +36,9 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  const userId = await getUserId();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('delete');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   try {
     const result = await prisma.transaction.deleteMany({ where: { userId, recurrenceGroup: params.groupId } });
     return result.count ? NextResponse.json({ success: true, deleted: result.count }) : NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });

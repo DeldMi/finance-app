@@ -18,6 +18,7 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !(await compare(password, user.password))) return null;
+        if (user.role !== 'ADMIN' && !user.permissions.includes('view')) return null;
 
         return { id: user.id, name: user.name, email: user.email };
       },
@@ -28,7 +29,18 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: '/login' },
   callbacks: {
     async session({ session, token }) {
-      if (session.user && token.sub) session.user.id = token.sub;
+      if (!session.user || !token.sub) return session;
+
+      const user = await prisma.user.findUnique({
+        where: { id: token.sub },
+        select: { role: true, permissions: true },
+      });
+
+      if (user) {
+        session.user.id = token.sub;
+        session.user.role = user.role;
+        session.user.permissions = user.permissions;
+      }
       return session;
     },
   },

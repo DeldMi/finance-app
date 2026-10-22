@@ -35,13 +35,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: await hash(password, 12),
-      },
-      select: { id: true },
+    // The first account owns the workspace; later accounts start without access.
+    const user = await prisma.$transaction(async (tx) => {
+      const firstAccount = (await tx.user.count()) === 0;
+      return tx.user.create({
+        data: {
+          name,
+          email,
+          password: await hash(password, 12),
+          role: firstAccount ? 'ADMIN' : 'BLOCKED',
+          permissions: firstAccount
+            ? JSON.stringify(['view', 'create', 'edit', 'delete'])
+            : '[]',
+        },
+        select: { id: true },
+      });
     });
     return NextResponse.json({ id: user.id }, { status: 201 });
   } catch (error) {

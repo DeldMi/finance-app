@@ -1,13 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, TRANSACTION_TYPES, type EntityType, type TransactionType } from '@/lib/types';
-
-async function userId() {
-  const session = await getServerSession(authOptions);
-  return session?.user?.id;
-}
 
 function addRecurrence(date: Date, recurrence: string, occurrence: number): Date {
   const result = new Date(date);
@@ -33,8 +27,9 @@ function addRecurrence(date: Date, recurrence: string, occurrence: number): Date
 }
 
 export async function GET() {
-  const id = await userId();
-  if (!id) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('view');
+  if ('response' in access) return access.response;
+  const id = access.userId;
   try {
     return NextResponse.json(await prisma.transaction.findMany({ where: { userId: id }, include: { card: true }, orderBy: { date: 'desc' } }));
   } catch {
@@ -43,8 +38,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const id = await userId();
-  if (!id) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('create');
+  if ('response' in access) return access.response;
+  const id = access.userId;
   let data: Record<string, unknown>;
   try { data = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'Corpo JSON inválido.' }, { status: 400 }); }
   const description = typeof data.description === 'string' ? data.description.trim() : '';

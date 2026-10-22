@@ -1,13 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-
-async function getUserId() { const session = await getServerSession(authOptions); return session?.user?.id; }
+import { requirePermission } from '@/lib/permissions';
 
 export async function GET(request: Request) {
-  const userId = await getUserId();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('view');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   const requestedEntity = new URL(request.url).searchParams.get('entity');
   const entityFilter = requestedEntity === 'PHYSICAL' || requestedEntity === 'LEGAL' ? { OR: [{ entity: 'ALL' }, { entity: requestedEntity }] } : {};
   try { return NextResponse.json(await prisma.category.findMany({ where: { userId, ...entityFilter }, orderBy: { name: 'asc' } })); }
@@ -15,8 +13,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const userId = await getUserId();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('create');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
   const name = typeof body.name === 'string' ? body.name.trim() : '';

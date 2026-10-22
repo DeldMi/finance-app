@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requirePermission } from '@/lib/permissions';
 
 type Context = { params: { id: string } };
-async function owner() { const session = await getServerSession(authOptions); return session?.user?.id; }
-
 export async function PATCH(request: Request, { params }: Context) {
-  const userId = await owner();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('edit');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   let body: unknown;
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
   if (!body || typeof body !== 'object' || !('status' in body) || !['PAID', 'PENDING'].includes(String(body.status))) return NextResponse.json({ error: 'Situação inválida.' }, { status: 400 });
@@ -20,8 +18,9 @@ export async function PATCH(request: Request, { params }: Context) {
 }
 
 export async function PUT(request: Request, { params }: Context) {
-  const userId = await owner();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('edit');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'Corpo JSON inválido.' }, { status: 400 }); }
   const description = typeof body.description === 'string' ? body.description.trim() : '';
@@ -45,8 +44,9 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  const userId = await owner();
-  if (!userId) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  const access = await requirePermission('delete');
+  if ('response' in access) return access.response;
+  const userId = access.userId;
   try {
     const result = await prisma.transaction.deleteMany({ where: { id: params.id, userId } });
     return result.count ? NextResponse.json({ success: true }) : NextResponse.json({ error: 'Lançamento não encontrado.' }, { status: 404 });
