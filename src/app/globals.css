@@ -1014,6 +1014,24 @@ a:focus-visible {
   background: white;
 }
 
+.report-actions {
+  align-items: end;
+  gap: 12px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--color-line);
+}
+.report-actions > .field { flex: 1 1 280px; }
+.report-actions > .button { align-self: end; }
+.report-panel > .panel-actions {
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-line);
+}
+.report-panel > .report-preview-frame { margin-top: 16px; }
+
 @media (max-width: 680px) {
   .modal-backdrop { align-items: start; padding: 10px; }
   .modal-card { max-height: calc(100vh - 20px); padding: 18px 14px; }

@@ -1,0 +1,16 @@
+:root { color-scheme: light; font-family: Arial, sans-serif; color: #202238; }
+body { max-width: 1120px; margin: 34px auto; padding: 0 28px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 28px; border-radius: 16px; color: #fff; background: linear-gradient(115deg, #342b70, #6555ae); }
+.eyebrow { margin: 0 0 8px; color: #d6d0ff; font-size: 10px; font-weight: 700; letter-spacing: .14em; }
+h1 { margin: 0 0 8px; font-size: 28px; } header p:last-child { margin: 0; color: #e7e4ff; font-size: 12px; } header p span { padding: 0 6px; }
+.badge { padding: 9px 12px; border: 1px solid #c4bcff; border-radius: 999px; color: #f1efff; font-size: 10px; letter-spacing: .1em; }
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 20px 0 32px; }
+.totals article { padding: 18px; border: 1px solid #e5e3f3; border-radius: 12px; background: #f8f7fd; }
+.totals article:nth-child(1) { border-left: 4px solid #318c71; } .totals article:nth-child(2) { border-left: 4px solid #d16c78; } .totals article:nth-child(3) { border-left: 4px solid #6555ae; }
+.totals span, .totals strong, .totals small { display: block; } .totals span { color: #72718a; font-size: 12px; } .totals strong { margin: 9px 0 6px; font-size: 20px; } .totals small { color: #88879b; font-size: 10px; }
+.table-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; } h2 { font-size: 17px; } .table-heading span { color: #6555ae; font-size: 11px; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; } th { color: #fff; background: #403779; }
+th, td { padding: 11px 9px; border-bottom: 1px solid #e7e6ef; text-align: left; } th:first-child { border-radius: 8px 0 0; } th:last-child { border-radius: 0 8px 0 0; } th:last-child, td:last-child { text-align: right; } tbody tr:nth-child(even) { background: #f8f7fc; }
+footer { margin-top: 26px; color: #88879b; font-size: 10px; }
+@media (max-width: 700px) { body { padding: 0 12px; } .totals { grid-template-columns: 1fr; } .badge { display: none; } table { font-size: 10px; } th, td { padding: 6px 4px; } }
+@media print { body { margin: 0 auto; } }

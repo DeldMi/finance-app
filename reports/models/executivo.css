@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: Arial, sans-serif; color: #17243b; }
+body { max-width: 1120px; margin: 36px auto; padding: 0 30px; }
+header { padding: 26px 30px; color: #fff; background: #17243b; border-radius: 12px; }
+.eyebrow { color: #8cc8ff; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+h1 { margin: 12px 0 8px; font-size: 30px; } header p:last-child { margin-bottom: 0; color: #d7e1f0; }
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 24px 0 32px; }
+.totals article { padding: 18px; border-left: 4px solid #3478bd; background: #f0f4f9; }
+.totals span, .totals strong { display: block; } .totals span { color: #53647b; font-size: 13px; }
+.totals strong { margin-top: 10px; font-size: 22px; }
+h2 { padding-bottom: 10px; border-bottom: 2px solid #3478bd; font-size: 18px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; } th { color: #fff; background: #263c5c; }
+th, td { padding: 11px 9px; border-bottom: 1px solid #dce3ed; text-align: left; } tbody tr:nth-child(even) { background: #f5f7fa; }
+th:last-child, td:last-child { text-align: right; } footer { margin-top: 32px; color: #6c7a8d; font-size: 11px; }
+@media (max-width: 700px) { body { padding: 0 12px; } .totals { grid-template-columns: 1fr; } table { font-size: 10px; } th, td { padding: 6px 4px; } }
+@media print { body { margin: 0 auto; } }

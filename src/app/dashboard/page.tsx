@@ -741,9 +741,13 @@ export default function DashboardPage() {
     return models;
   }
 
-  async function openReportPreview() {
+  async function openReportPreview(selectedName = reportModelName) {
+    if (!selectedName) {
+      setReportPreview('');
+      return;
+    }
     const models = reportModels.length ? reportModels : await loadReportModels();
-    const model = models.find((item) => item.name === reportModelName) || models[0];
+    const model = models.find((item) => item.name === selectedName);
     if (model) {
       setReportPreview(renderReportModel(model, visibleEntries, filterEntity, income, expenses, balance));
     }
@@ -1110,18 +1114,17 @@ export default function DashboardPage() {
                                 </div>
                               <div className="report-actions no-print">
                                 <Field label="Modelo HTML">
-                                  <select className="select" value={reportModelName} onChange={(event) => setReportModelName(event.target.value)}>
+                                  <select className="select" value={reportModelName} onChange={(event) => { const selectedName = event.target.value; setReportModelName(selectedName); void openReportPreview(selectedName); }}>
                                     <option value="">Selecione</option>{reportModels.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</select>
                                   </Field>
                                 <button className="button button-secondary" type="button" onClick={() => void loadReportModels()}>Atualizar modelos</button>
-                                <button className="button button-primary" type="button" onClick={() => void openReportPreview()}>Visualizar modelo</button>
                                 </div>
                               {reportPreview && <>
                               <div className="panel-actions no-print">
                                 <button className="button button-primary" type="button" onClick={() => (document.getElementById('report-preview-frame') as HTMLIFrameElement | null)?.contentWindow?.print()}>Imprimir / salvar PDF</button>
                                 <button className="button button-secondary" type="button" onClick={() => setReportPreview('')}>Fechar prévia</button>
                                 </div>
-                              <iframe id="report-preview-frame" className="report-preview-frame" title="Pré-visualização do relatório" sandbox="" srcDoc={reportPreview} />
+                              <iframe id="report-preview-frame" className="report-preview-frame" title="Pré-visualização do relatório" sandbox="allow-same-origin allow-modals" srcDoc={reportPreview} />
                               </>}
                               <div className="report-heading">
                                 <h2>Relatório ? {filterEntity === 'ALL' ? 'Geral' : filterEntity === 'PHYSICAL' ? 'Pessoal (PF)' : 'Empresa (PJ)'}</h2>

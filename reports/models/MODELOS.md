@@ -1,6 +1,6 @@
 ﻿# Modelos de relatório
 
-Coloque arquivos `.html` e `.css` com o mesmo nome nesta pasta. O seletor do painel reconhece automaticamente cada par. O HTML usa `{{variavel}}`; o CSS é incorporado no `<style>`.
+O painel inclui cinco temas prontos: Padrão (verde), Executivo (azul), Minimalista (monocromático), Natureza (verde orgânico) e Moderno (roxo). Coloque arquivos `.html` e `.css` com o mesmo nome nesta pasta para adicionar outros; o seletor reconhece automaticamente cada par. O HTML usa `{{variavel}}`; o CSS é incorporado no `<style>`.
 
 ## Variáveis disponíveis
 

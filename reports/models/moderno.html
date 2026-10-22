@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>{{reportTitle}}</title><style>{{styles}}</style></head>
+  <body>
+    <header><div><p class="eyebrow">PAINEL · FINANÇAS</p><h1>{{reportTitle}}</h1><p>{{entity}} <span>·</span> {{generatedAt}}</p></div><div class="badge">RELATÓRIO</div></header>
+    <section class="totals"><article><span>Entradas</span><strong>{{totalIncome}}</strong><small>Valores recebidos</small></article><article><span>Despesas</span><strong>{{totalExpenses}}</strong><small>Valores pagos</small></article><article><span>Saldo líquido</span><strong>{{balance}}</strong><small>Resultado do período</small></article></section>
+    <div class="table-heading"><h2>Movimentações</h2><span>{{entity}}</span></div><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Situação</th></tr></thead><tbody>{{transactionsTable}}</tbody></table>
+    <footer>Gerado pelo Meu Financeiro em {{generatedAt}}</footer>
+  </body>
+</html>

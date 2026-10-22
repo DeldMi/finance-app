@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>{{reportTitle}}</title><style>{{styles}}</style></head>
+  <body>
+    <header><p class="eyebrow">MEU FINANCEIRO · RELATÓRIO EXECUTIVO</p><h1>{{reportTitle}}</h1><p>{{entity}} <span>•</span> Emitido em {{generatedAt}}</p></header>
+    <section class="totals"><article><span>Receitas realizadas</span><strong>{{totalIncome}}</strong></article><article><span>Despesas realizadas</span><strong>{{totalExpenses}}</strong></article><article><span>Resultado líquido</span><strong>{{balance}}</strong></article></section>
+    <h2>Detalhamento financeiro</h2><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Situação</th></tr></thead><tbody>{{transactionsTable}}</tbody></table>
+    <footer>Documento gerado em {{generatedAt}}</footer>
+  </body>
+</html>

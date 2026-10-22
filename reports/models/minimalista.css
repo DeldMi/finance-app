@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: Inter, Arial, sans-serif; color: #242424; }
+body { max-width: 1060px; margin: 42px auto; padding: 0 32px; }
+header { display: flex; align-items: center; gap: 18px; padding-bottom: 24px; border-bottom: 1px solid #d8d8d8; }
+.mark { display: grid; width: 54px; height: 54px; place-items: center; border: 1px solid #222; border-radius: 50%; font-size: 15px; font-weight: 700; }
+.eyebrow { margin: 0; color: #737373; font-size: 10px; letter-spacing: .16em; }
+h1 { margin: 6px 0; font-size: 27px; font-weight: 600; } header p:last-child { margin: 0; color: #737373; font-size: 13px; }
+.totals { display: grid; grid-template-columns: repeat(3, 1fr); margin: 28px 0 38px; }
+.totals article { padding: 8px 18px; border-left: 1px solid #ddd; } .totals article:first-child { border-left: 0; padding-left: 0; }
+.totals span, .totals strong { display: block; } .totals span { color: #777; font-size: 12px; } .totals strong { margin-top: 9px; font-size: 20px; }
+h2 { margin-bottom: 12px; font-size: 16px; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; } th { color: #777; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+th, td { padding: 12px 8px; border-bottom: 1px solid #e5e5e5; text-align: left; } th:last-child, td:last-child { text-align: right; }
+footer { margin-top: 28px; color: #888; font-size: 10px; } footer span { padding: 0 6px; }
+@media (max-width: 700px) { body { padding: 0 12px; } .totals { grid-template-columns: 1fr; gap: 12px; } .totals article, .totals article:first-child { padding: 0; border: 0; } table { font-size: 10px; } th, td { padding: 6px 4px; } }
+@media print { body { margin: 0 auto; } }

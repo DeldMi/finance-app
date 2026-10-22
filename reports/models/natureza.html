@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>{{reportTitle}}</title><style>{{styles}}</style></head>
+  <body>
+    <header><p class="eyebrow">CONTROLE E EQUILÍBRIO</p><h1>{{reportTitle}}</h1><div class="meta"><span>Instância: {{entity}}</span><span>Gerado em: {{generatedAt}}</span></div></header>
+    <section class="totals"><article><span>Entradas pagas</span><strong>{{totalIncome}}</strong></article><article><span>Despesas pagas</span><strong>{{totalExpenses}}</strong></article><article><span>Saldo final</span><strong>{{balance}}</strong></article></section>
+    <h2>Histórico de movimentações</h2><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Situação</th></tr></thead><tbody>{{transactionsTable}}</tbody></table>
+    <footer>Meu Financeiro · Relatório de {{entity}}</footer>
+  </body>
+</html>
