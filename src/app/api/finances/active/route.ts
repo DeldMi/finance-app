@@ -15,6 +15,6 @@ export async function POST(request: NextRequest) {
   const membership = await prisma.financeMember.findUnique({ where: { financeId_userId: { financeId, userId } } });
   if (!membership) return NextResponse.json({ error: 'Você não tem acesso a esta instância.' }, { status: 403 });
   const response = NextResponse.json({ ok: true });
-  response.cookies.set('active-finance', financeId, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 24 * 365 });
+  response.cookies.set('active-finance', financeId, { httpOnly: true, sameSite: 'lax', secure: process.env.NEXTAUTH_URL ? process.env.NEXTAUTH_URL.startsWith('https://') : process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 24 * 365 });
   return response;
 }

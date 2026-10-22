@@ -654,7 +654,9 @@ export default function DashboardPage() {
       const response = await fetch('/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...snapshot, selected }) });
       const result = await readJson(response);
       if (!response.ok) throw new Error(result.error || 'Não foi possível restaurar o backup.');
-      setBackupMessage('Backup restaurado.'); setRestoreFile(null); await refresh();
+      if (result.financeId) localStorage.setItem('active-finance-id', result.financeId);
+      setBackupMessage(result.financeCreated ? 'Backup restaurado e instância financeira criada.' : 'Backup restaurado.');
+      setRestoreFile(null); await refresh();
     } catch (cause) { setBackupMessage(cause instanceof Error ? cause.message : 'Arquivo inválido.'); }
     finally { setBusy(false); }
   }

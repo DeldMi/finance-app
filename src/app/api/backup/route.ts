@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
       }
     });
     const response = NextResponse.json({ ok: true, financeId, financeCreated: createdFinance });
-    response.cookies.set('active-finance', financeId, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 24 * 365 });
+    response.cookies.set('active-finance', financeId, { httpOnly: true, sameSite: 'lax', secure: process.env.NEXTAUTH_URL ? process.env.NEXTAUTH_URL.startsWith('https://') : process.env.NODE_ENV === 'production', path: '/', maxAge: 60 * 60 * 24 * 365 });
     return response;
   } catch {
     return NextResponse.json({ error: 'Não foi possível restaurar. Confira o arquivo e as relações entre os dados.' }, { status: 400 });
