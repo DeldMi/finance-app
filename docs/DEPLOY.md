@@ -57,13 +57,15 @@ quando tiver certeza de que quer apagar os dados.
 
 ## Segredos, backups e operação
 
-- O banco central guarda contas, permissões e configurações. Cada usuário tem
-  um SQLite próprio em `FINANCE_DATABASE_DIR`; mantenha essa pasta no volume
-  persistente do banco central e inclua ambos no plano de backup.
-- No Docker Compose, os bancos individuais ficam em
-  `/app/prisma/user-finances`, dentro do volume persistente `sqlite_data`.
+- O banco central guarda contas, permissões e configurações em
+  `/app/prisma/prod.db`. O diretório dos bancos individuais é derivado
+  automaticamente desse caminho e criado em `/app/prisma/user-finances`.
+  Mantenha `/app/prisma` em armazenamento persistente e inclua esses arquivos
+  no plano de backup.
 - Mantenha `.env` fora do Git e defina `NEXTAUTH_SECRET` forte e exclusivo.
-- Configure `NEXTAUTH_URL` com o endereço HTTPS público do deploy.
+- Configure `NEXTAUTH_URL` com o endereço e protocolo usados para acessar a
+  aplicação. Em acesso pela rede local use o IP/porta do TrueNAS; em acesso
+  público, prefira HTTPS no domínio do proxy reverso.
 - Use HTTPS no proxy de produção e proteja o acesso ao host e aos volumes.
 - Faça backups consistentes do volume SQLite e teste a restauração.
 - Para aplicar novas migrações, publique a imagem nova e monitore os logs.

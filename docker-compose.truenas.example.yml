@@ -9,8 +9,6 @@ services:
       - "30080:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: file:/app/prisma/prod.db
-      FINANCE_DATABASE_DIR: /app/prisma/user-finances
       NEXTAUTH_SECRET: "TROQUE_POR_UM_SEGREDO_ALEATORIO_LONGO"
       NEXTAUTH_URL: "http://IP_DO_TRUENAS:30080"
     volumes:

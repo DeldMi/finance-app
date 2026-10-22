@@ -22,6 +22,7 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV DATABASE_URL=file:/app/prisma/prod.db
 
 RUN apk add --no-cache openssl
 
@@ -37,4 +38,4 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
+CMD ["sh", "-c", "mkdir -p /app/prisma/user-finances /bkp && npx prisma migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
