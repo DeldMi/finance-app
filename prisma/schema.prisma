@@ -15,6 +15,21 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   transactions Transaction[]
+  cards        PaymentCard[]
+}
+
+model PaymentCard {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  brand       String?
+  lastFour    String?
+  creditLimit Float?
+  closingDay  Int?
+  dueDay      Int?
+  createdAt   DateTime @default(now())
+  transactions Transaction[]
 }
 
 model Transaction {
@@ -28,4 +43,13 @@ model Transaction {
   category    String
   date        DateTime @default(now())
   createdAt   DateTime @default(now())
+  dueDate     DateTime?
+  paidAt      DateTime?
+  status      String   @default("PAID")
+  recurrence  String?
+  installmentGroup String?
+  installmentNumber Int?
+  installmentTotal Int?
+  cardId      String?
+  card        PaymentCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
 }
