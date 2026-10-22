@@ -32,7 +32,14 @@ export async function PUT(request: Request, { params }: Context) {
   try {
     const existing = await prisma.transaction.findFirst({ where: { id: params.id, userId } });
     if (!existing) return NextResponse.json({ error: 'Lançamento não encontrado.' }, { status: 404 });
-    const transaction = await prisma.transaction.update({ where: { id: params.id }, data: { description, amount, category: typeof body.category === 'string' ? body.category.trim().slice(0, 60) || 'Geral' : existing.category, date, dueDate, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
+    const cardId = typeof body.cardId === 'string' && body.cardId ? body.cardId : null;
+    const accountId = typeof body.accountId === 'string' && body.accountId ? body.accountId : null;
+    if (cardId && !await prisma.paymentCard.findFirst({ where: { id: cardId, userId } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
+    if (accountId && !await prisma.financialInstitution.findFirst({ where: { id: accountId, userId } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
+    const allowedPurposes = ['STANDARD', 'CARD_PAYMENT', 'LOAN', 'DONATION', 'SUBSCRIPTION'];
+    const purpose = typeof body.purpose === 'string' && allowedPurposes.includes(body.purpose) ? body.purpose : existing.purpose;
+    if (purpose === 'CARD_PAYMENT' && !cardId) return NextResponse.json({ error: 'Selecione o cartão cuja fatura será paga.' }, { status: 400 });
+    const transaction = await prisma.transaction.update({ where: { id: params.id }, data: { description, amount, category: typeof body.category === 'string' ? body.category.trim().slice(0, 60) || 'Geral' : existing.category, date, dueDate, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null, cardId, accountId, purpose, autoDebit: body.autoDebit === true, isSubscription: body.isSubscription === true, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, 300) || null : null } });
     return NextResponse.json(transaction);
   } catch { return NextResponse.json({ error: 'Erro ao atualizar lançamento.' }, { status: 500 }); }
 }

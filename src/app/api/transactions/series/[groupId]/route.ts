@@ -18,15 +18,18 @@ export async function PUT(request: Request, { params }: Context) {
   const type = body.type;
   const entity = body.entity;
   const cardId = typeof body.cardId === 'string' && body.cardId ? body.cardId : null;
+  const accountId = typeof body.accountId === 'string' && body.accountId ? body.accountId : null;
+  const purpose = typeof body.purpose === 'string' && ['STANDARD', 'CARD_PAYMENT', 'LOAN', 'DONATION', 'SUBSCRIPTION'].includes(body.purpose) ? body.purpose : 'STANDARD';
   if (!description || description.length > 120 || !Number.isFinite(amount) || amount <= 0 || !category || category.length > 60 || !['PAID', 'PENDING'].includes(String(body.status)) || !TRANSACTION_TYPES.includes(type as TransactionType) || !ENTITY_TYPES.includes(entity as EntityType)) return NextResponse.json({ error: 'Dados da série inválidos.' }, { status: 400 });
   try {
     if (cardId && !await prisma.paymentCard.findFirst({ where: { id: cardId, userId } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
+    if (accountId && !await prisma.financialInstitution.findFirst({ where: { id: accountId, userId } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
     const rows = await prisma.transaction.findMany({ where: { userId, recurrenceGroup: params.groupId }, select: { id: true, date: true, dueDate: true } });
     if (!rows.length) return NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });
     const today = new Date().toISOString().slice(0, 10);
     const futureIds = rows.filter(row => row.date.toISOString().slice(0, 10) > today || Boolean(row.dueDate && row.dueDate.toISOString().slice(0, 10) > today)).map(row => row.id);
     const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.transaction.updateMany({ where: { userId, recurrenceGroup: params.groupId }, data: { description, amount, category, type: String(type), entity: String(entity), cardId, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
+      const updated = await tx.transaction.updateMany({ where: { userId, recurrenceGroup: params.groupId }, data: { description, amount, category, type: String(type), entity: String(entity), cardId, accountId, purpose, autoDebit: body.autoDebit === true, isSubscription: body.isSubscription === true, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, 300) || null : null, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
       if (body.status === 'PAID' && futureIds.length) await tx.transaction.updateMany({ where: { userId, id: { in: futureIds } }, data: { status: 'PENDING', paidAt: null } });
       return updated;
     });

@@ -13,12 +13,15 @@ export async function PUT(request: Request, { params }: Context) {
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
   const name = typeof body.name === 'string' ? body.name.trim() : '';
   const description = typeof body.description === 'string' ? body.description.trim() : '';
+  const entity = typeof body.entity === 'string' && ['ALL', 'PHYSICAL', 'LEGAL'].includes(body.entity) ? body.entity : 'ALL';
   if (!name || name.length > 60 || description.length > 180) return NextResponse.json({ error: 'Informe um nome (até 60 caracteres) e descrição (até 180).' }, { status: 400 });
   try {
     const previous = await prisma.category.findFirst({ where: { id: params.id, userId } });
     if (!previous) return NextResponse.json({ error: 'Categoria não encontrada.' }, { status: 404 });
+    const existingCategories = await prisma.category.findMany({ where: { userId, entity } });
+    if (existingCategories.some(item => item.id !== previous.id && item.name.trim().toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) return NextResponse.json({ error: 'Já existe uma categoria com esse nome neste perfil.' }, { status: 409 });
     const category = await prisma.$transaction(async (tx) => {
-      const updated = await tx.category.update({ where: { id: previous.id }, data: { name, description } });
+      const updated = await tx.category.update({ where: { id: previous.id }, data: { name, description, entity } });
       if (previous.name !== name) await tx.transaction.updateMany({ where: { userId, category: previous.name }, data: { category: name } });
       return updated;
     });

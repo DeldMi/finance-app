@@ -19,11 +19,12 @@ export async function POST(request: Request) {
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'Corpo inválido.' }, { status: 400 }); }
   const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const paymentType = body.paymentType === 'DEBIT' ? 'DEBIT' : 'CREDIT';
   const lastFour = typeof body.lastFour === 'string' ? body.lastFour.trim() : '';
   const limit = body.creditLimit === '' || body.creditLimit == null ? null : Number(body.creditLimit);
   const closingDay = body.closingDay === '' || body.closingDay == null ? null : Number(body.closingDay);
   const dueDay = body.dueDay === '' || body.dueDay == null ? null : Number(body.dueDay);
   if (!name || name.length > 60 || (lastFour && !/^\d{4}$/.test(lastFour)) || (limit !== null && (!Number.isFinite(limit) || limit < 0)) || [closingDay, dueDay].some(day => day !== null && (!Number.isInteger(day) || day < 1 || day > 31))) return NextResponse.json({ error: 'Confira nome, limite, final do cartão e dias.' }, { status: 400 });
-  try { return NextResponse.json(await prisma.paymentCard.create({ data: { userId: id, name, brand: typeof body.brand === 'string' ? body.brand.trim().slice(0, 30) || null : null, lastFour: lastFour || null, creditLimit: limit, closingDay, dueDay } }), { status: 201 }); }
+  try { return NextResponse.json(await prisma.paymentCard.create({ data: { userId: id, name, paymentType, brand: typeof body.brand === 'string' ? body.brand.trim().slice(0, 30) || null : null, lastFour: lastFour || null, creditLimit: paymentType === 'CREDIT' ? limit : null, closingDay, dueDay } }), { status: 201 }); }
   catch { return NextResponse.json({ error: 'Erro ao cadastrar cartão.' }, { status: 500 }); }
 }

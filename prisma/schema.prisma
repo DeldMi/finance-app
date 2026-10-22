@@ -17,6 +17,7 @@ model User {
   transactions Transaction[]
   cards        PaymentCard[]
   categories   Category[]
+  institutions FinancialInstitution[]
 }
 
 model Category {
@@ -25,8 +26,22 @@ model Category {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   description String   @default("")
+  entity      String   @default("ALL")
   createdAt   DateTime @default(now())
-  @@unique([userId, name])
+  @@unique([userId, name, entity])
+}
+
+model FinancialInstitution {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  institution   String
+  accountType   String        @default("CHECKING")
+  entity        String        @default("PHYSICAL")
+  initialBalance Float       @default(0)
+  createdAt     DateTime      @default(now())
+  transactions  Transaction[]
 }
 
 model PaymentCard {
@@ -34,6 +49,7 @@ model PaymentCard {
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
+  paymentType String   @default("CREDIT")
   brand       String?
   lastFour    String?
   creditLimit Float?
@@ -65,4 +81,10 @@ model Transaction {
   installmentTotal Int?
   cardId      String?
   card        PaymentCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  accountId   String?
+  account     FinancialInstitution? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  purpose     String   @default("STANDARD")
+  autoDebit   Boolean  @default(false)
+  isSubscription Boolean @default(false)
+  notes       String?
 }
