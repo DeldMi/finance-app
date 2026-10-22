@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { mkdir, readdir, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { requireAdmin, requireFinancePermission } from '@/lib/permissions';
-import { parsePermissions } from '@/lib/permissions';
+import { parsePermissions, requireFinancePermission } from '@/lib/permissions';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getOwnerFinanceDatabase } from '@/lib/finance-database';
@@ -83,7 +82,7 @@ export async function POST(request: NextRequest) {
       if (memberships) return NextResponse.json({ error: 'Selecione a instância financeira que receberá o backup.' }, { status: 400 });
       const backupFinance = body.finance && typeof body.finance === 'object' ? body.finance : {};
       const name = typeof backupFinance.name === 'string' ? backupFinance.name.trim().slice(0, 80) : '';
-      const rows = [...data.transactions, ...data.cards, ...data.accounts, ...data.categories];
+      const rows = tables.flatMap((key) => Array.isArray(data[key]) ? data[key] : []);
       const entity = backupFinance.entity === 'LEGAL' || backupFinance.entity === 'PHYSICAL'
         ? backupFinance.entity
         : rows.some((row: any) => row?.entity === 'LEGAL') ? 'LEGAL' : 'PHYSICAL';
