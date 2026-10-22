@@ -33,3 +33,6 @@ yarn-error.log*
 
 # Sitemas operacionais
 bkp/*
+
+# Loges do projeto
+logs/*
