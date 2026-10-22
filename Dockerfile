@@ -33,9 +33,10 @@ COPY --from=builder /app/.next/static ./.next/static
 # as persistent data by the TrueNAS Compose configuration.
 COPY --from=builder /app/prisma ./prisma-schema
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
 
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "mkdir -p /app/prisma/user-finances /bkp && ./node_modules/.bin/prisma migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
+CMD ["sh", "-c", "mkdir -p /app/prisma/user-finances /bkp && node ./node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
