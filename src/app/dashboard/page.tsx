@@ -1148,7 +1148,9 @@ export default function DashboardPage() {
                             </section>
                             {session?.user.role === 'ADMIN' && <section className="panel">
                               <h2 className="panel-title">Usuários e permissões</h2>
-                              <p className="panel-description">Novas contas começam bloqueadas. Libere somente as ações necessárias.</p>{adminUsers.map((user) => <div className="user-permission-row" key={user.id}>
+                              <p className="panel-description">Novas contas começam bloqueadas. Libere somente as ações necessárias.</p>
+                              <div className="panel-actions"><Link className="button button-secondary" href="/dashboard/logs">Ver logs do servidor</Link></div>
+                              {adminUsers.map((user) => <div className="user-permission-row" key={user.id}>
                                 <div>
                                   <strong>{user.name}</strong>
                                   <small className="muted-block">{user.email}</small>

@@ -5,6 +5,15 @@ services:
   app:
     image: ghcr.io/deldmi/finance-app:latest
     restart: unless-stopped
+    command:
+      - /bin/bash
+      - -lc
+      - |
+        set -e
+        mkdir -p /app/prisma/user-finances /app/prisma/logs /bkp
+        exec > >(node ./scripts/log-tee.cjs /app/prisma/logs/application.log) 2>&1
+        node ./node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma-schema/schema.prisma
+        exec node server.js
     ports:
       - "30080:3000"
     environment:

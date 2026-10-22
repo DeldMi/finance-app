@@ -68,6 +68,7 @@ quando tiver certeza de que quer apagar os dados.
   público, prefira HTTPS no domínio do proxy reverso.
 - Use HTTPS no proxy de produção e proteja o acesso ao host e aos volumes.
 - Faça backups consistentes do volume SQLite e teste a restauração.
+- O container grava os logs em `/app/prisma/logs/application.log`, dentro do volume persistente de dados; no host, o arquivo fica em `<data>/logs/application.log`. O arquivo é limitado a 5 MB, mantendo até três arquivos rotacionados. Administradores podem acompanhar as novas linhas em **Configurações → Usuários e permissões → Ver logs do servidor**.
 - Para aplicar novas migrações, publique a imagem nova e monitore os logs.
 - O SQLite persiste no volume, mas não deve ser compartilhado entre múltiplos
   servidores sem uma estratégia explícita de armazenamento e concorrência.

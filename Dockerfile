@@ -7,7 +7,7 @@ WORKDIR /app
 ENV DATABASE_URL=file:/tmp/finance-build.db
 ENV FINANCE_DATABASE_DIR=/tmp/finance-build-user-finances
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl bash
 
 COPY package*.json ./
 COPY prisma ./prisma/
@@ -24,7 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV DATABASE_URL=file:/app/prisma/prod.db
 
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl bash
 
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
@@ -34,9 +34,10 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma-schema
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/scripts/log-tee.cjs ./scripts/log-tee.cjs
 
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "mkdir -p /app/prisma/user-finances /bkp && node ./node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
+CMD ["/bin/bash", "-lc", "set -e; mkdir -p /app/prisma/user-finances /app/prisma/logs /bkp; exec > >(node ./scripts/log-tee.cjs /app/prisma/logs/application.log) 2>&1; node ./node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma-schema/schema.prisma; exec node server.js"]
