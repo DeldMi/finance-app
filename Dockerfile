@@ -38,4 +38,4 @@ ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
 EXPOSE 3000
 
-CMD ["sh", "-c", "mkdir -p /app/prisma/user-finances /bkp && npx prisma migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
+CMD ["sh", "-c", "mkdir -p /app/prisma/user-finances /bkp && ./node_modules/.bin/prisma migrate deploy --schema=/app/prisma-schema/schema.prisma && node server.js"]
