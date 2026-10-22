@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, type EntityType } from '@/lib/types';
 
 type Context = { params: { id: string } };
@@ -8,8 +8,9 @@ const ACCOUNT_TYPES = ['CHECKING', 'SAVINGS', 'CASH', 'WALLET', 'OTHER'];
 
 /** Update a bank account or cash wallet owned by the current user. */
 export async function PUT(request: Request, { params }: Context) {
-  const access = await requirePermission('edit');
+  const access = await requireFinancePermission('edit');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
   let body: unknown;
   try { body = await request.json(); }
@@ -26,10 +27,10 @@ export async function PUT(request: Request, { params }: Context) {
     return NextResponse.json({ error: 'Confira nome, instituição, tipo, perfil e saldo inicial.' }, { status: 400 });
   }
 
-  const account = await prisma.financialInstitution.findFirst({ where: { id: params.id, userId: access.userId } });
+  const account = await db.financialInstitution.findFirst({ where: { id: params.id, financeId: access.financeId } });
   if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
 
-  const updated = await prisma.financialInstitution.update({
+  const updated = await db.financialInstitution.update({
     where: { id: account.id },
     data: { name, institution, accountType, entity: String(entity), initialBalance },
   });
@@ -38,10 +39,11 @@ export async function PUT(request: Request, { params }: Context) {
 
 /** Remove the account; historical transactions remain saved. */
 export async function DELETE(_request: Request, { params }: Context) {
-  const access = await requirePermission('delete');
+  const access = await requireFinancePermission('delete');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
-  const result = await prisma.financialInstitution.deleteMany({ where: { id: params.id, userId: access.userId } });
+  const result = await db.financialInstitution.deleteMany({ where: { id: params.id, financeId: access.financeId } });
   return result.count
     ? NextResponse.json({ success: true })
     : NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });

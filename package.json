@@ -1,16 +1,18 @@
 {
   "name": "meu-financeiro",
   "version": "1.0.0",
+  "author": "DeldMi",
+  "license": "UNLICENSED",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma generate --schema prisma/finance-schema.prisma && next build",
     "start": "node .next/standalone/server.js",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "db:generate": "prisma generate",
+    "db:generate": "prisma generate && prisma generate --schema prisma/finance-schema.prisma",
     "admin:grant": "node scripts/grant-admin.cjs"
   },
   "dependencies": {

@@ -8,23 +8,58 @@ generator client {
 }
 
 model User {
-  id           String        @id @default(uuid())
-  name         String
-  email        String        @unique
-  password     String
-  role         String        @default("BLOCKED")
-  permissions  String        @default("[]")
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  transactions Transaction[]
-  cards        PaymentCard[]
-  categories   Category[]
-  institutions FinancialInstitution[]
+  id                 String                 @id @default(uuid())
+  name               String
+  email              String                 @unique
+  password           String
+  role               String                 @default("BLOCKED")
+  permissions        String                 @default("[]")
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  transactions       Transaction[]
+  cards              PaymentCard[]
+  categories         Category[]
+  institutions       FinancialInstitution[]
+  shoppingLists      ShoppingList[]
+  ownedFinances      Finance[]              @relation("FinanceOwner")
+  financeMemberships FinanceMember[]
+}
+
+model Finance {
+  id            String                 @id @default(uuid())
+  name          String
+  entity        String                 @default("PHYSICAL")
+  ownerId       String
+  owner         User                   @relation("FinanceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  members       FinanceMember[]
+  transactions  Transaction[]
+  cards         PaymentCard[]
+  categories    Category[]
+  institutions  FinancialInstitution[]
   shoppingLists ShoppingList[]
+
+  @@index([ownerId])
+}
+
+model FinanceMember {
+  id          String   @id @default(uuid())
+  financeId   String
+  userId      String
+  permissions String   @default("[\"view\"]")
+  createdAt   DateTime @default(now())
+  finance     Finance  @relation(fields: [financeId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([financeId, userId])
+  @@index([userId])
 }
 
 model ShoppingList {
   id         String             @id @default(uuid())
+  financeId  String?
+  finance    Finance?           @relation(fields: [financeId], references: [id], onDelete: Cascade)
   userId     String
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   name       String
@@ -32,86 +67,104 @@ model ShoppingList {
   createdAt  DateTime           @default(now())
   updatedAt  DateTime           @updatedAt
   items      ShoppingListItem[]
+
+  @@index([financeId])
 }
 
 model ShoppingListItem {
-  id          String      @id @default(uuid())
-  listId      String
-  list        ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
-  name        String
-  quantity    Float
-  unit        String      @default("un")
-  unitPrice   Float
-  checked     Boolean     @default(true)
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id        String       @id @default(uuid())
+  listId    String
+  list      ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  Float
+  unit      String       @default("un")
+  unitPrice Float
+  checked   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }
 
 model Category {
   id          String   @id @default(uuid())
+  financeId   String?
+  finance     Finance? @relation(fields: [financeId], references: [id], onDelete: Cascade)
   userId      String
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name        String
   description String   @default("")
   entity      String   @default("ALL")
   createdAt   DateTime @default(now())
-  @@unique([userId, name, entity])
+
+  @@unique([financeId, name, entity])
+  @@index([financeId])
 }
 
 model FinancialInstitution {
-  id            String        @id @default(uuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  institution   String
-  accountType   String        @default("CHECKING")
-  entity        String        @default("PHYSICAL")
-  initialBalance Float       @default(0)
-  createdAt     DateTime      @default(now())
-  transactions  Transaction[]
+  id             String        @id @default(uuid())
+  financeId      String?
+  finance        Finance?      @relation(fields: [financeId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  institution    String
+  accountType    String        @default("CHECKING")
+  entity         String        @default("PHYSICAL")
+  initialBalance Float         @default(0)
+  createdAt      DateTime      @default(now())
+  transactions   Transaction[]
+
+  @@index([financeId])
 }
 
 model PaymentCard {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  paymentType String   @default("CREDIT")
-  brand       String?
-  lastFour    String?
-  creditLimit Float?
-  closingDay  Int?
-  dueDay      Int?
-  createdAt   DateTime @default(now())
+  id           String        @id @default(uuid())
+  financeId    String?
+  finance      Finance?      @relation(fields: [financeId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  paymentType  String        @default("CREDIT")
+  brand        String?
+  lastFour     String?
+  creditLimit  Float?
+  closingDay   Int?
+  dueDay       Int?
+  createdAt    DateTime      @default(now())
   transactions Transaction[]
+
+  @@index([financeId])
 }
 
 model Transaction {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  description String
-  amount      Float
-  type        String   @default("EXPENSE")
-  entity      String   @default("PHYSICAL")
-  category    String
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-  dueDate     DateTime?
-  paidAt      DateTime?
-  status      String   @default("PAID")
-  recurrence  String?
-  recurrenceGroup String?
+  id                String                @id @default(uuid())
+  financeId         String?
+  finance           Finance?              @relation(fields: [financeId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description       String
+  amount            Float
+  type              String                @default("EXPENSE")
+  entity            String                @default("PHYSICAL")
+  category          String
+  date              DateTime              @default(now())
+  createdAt         DateTime              @default(now())
+  dueDate           DateTime?
+  paidAt            DateTime?
+  status            String                @default("PAID")
+  recurrence        String?
+  recurrenceGroup   String?
   recurrenceEndDate DateTime?
-  installmentGroup String?
+  installmentGroup  String?
   installmentNumber Int?
-  installmentTotal Int?
-  cardId      String?
-  card        PaymentCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
-  accountId   String?
-  account     FinancialInstitution? @relation(fields: [accountId], references: [id], onDelete: SetNull)
-  purpose     String   @default("STANDARD")
-  autoDebit   Boolean  @default(false)
-  isSubscription Boolean @default(false)
-  notes       String?
+  installmentTotal  Int?
+  cardId            String?
+  card              PaymentCard?          @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  accountId         String?
+  account           FinancialInstitution? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  purpose           String                @default("STANDARD")
+  autoDebit         Boolean               @default(false)
+  isSubscription    Boolean               @default(false)
+  notes             String?
+
+  @@index([financeId])
 }

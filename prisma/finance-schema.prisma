@@ -1,0 +1,112 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/finance-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./finance-template.db"
+}
+
+model ShoppingList {
+  id         String             @id @default(uuid())
+  financeId  String
+  userId     String
+  name       String
+  shareToken String?            @unique
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  items      ShoppingListItem[]
+
+  @@index([financeId])
+}
+
+model ShoppingListItem {
+  id        String       @id @default(uuid())
+  listId    String
+  list      ShoppingList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  name      String
+  quantity  Float
+  unit      String       @default("un")
+  unitPrice Float
+  checked   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  financeId   String
+  userId      String
+  name        String
+  description String   @default("")
+  entity      String   @default("ALL")
+  createdAt   DateTime @default(now())
+
+  @@unique([financeId, name, entity])
+  @@index([financeId])
+}
+
+model FinancialInstitution {
+  id             String        @id @default(uuid())
+  financeId      String
+  userId         String
+  name           String
+  institution    String
+  accountType    String        @default("CHECKING")
+  entity         String        @default("PHYSICAL")
+  initialBalance Float         @default(0)
+  createdAt      DateTime      @default(now())
+  transactions   Transaction[]
+
+  @@index([financeId])
+}
+
+model PaymentCard {
+  id           String        @id @default(uuid())
+  financeId    String
+  userId       String
+  name         String
+  paymentType  String        @default("CREDIT")
+  brand        String?
+  lastFour     String?
+  creditLimit  Float?
+  closingDay   Int?
+  dueDay       Int?
+  createdAt    DateTime      @default(now())
+  transactions Transaction[]
+
+  @@index([financeId])
+}
+
+model Transaction {
+  id                String                @id @default(uuid())
+  financeId         String
+  userId            String
+  description       String
+  amount            Float
+  type              String                @default("EXPENSE")
+  entity            String                @default("PHYSICAL")
+  category          String
+  date              DateTime              @default(now())
+  createdAt         DateTime              @default(now())
+  dueDate           DateTime?
+  paidAt            DateTime?
+  status            String                @default("PAID")
+  recurrence        String?
+  recurrenceGroup   String?
+  recurrenceEndDate DateTime?
+  installmentGroup  String?
+  installmentNumber Int?
+  installmentTotal  Int?
+  cardId            String?
+  card              PaymentCard?          @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  accountId         String?
+  account           FinancialInstitution? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  purpose           String                @default("STANDARD")
+  autoDebit         Boolean               @default(false)
+  isSubscription    Boolean               @default(false)
+  notes             String?
+
+  @@index([financeId])
+}

@@ -1,5 +1,6 @@
 # dependências
 node_modules/
+src/generated/
 .pnpm-store
 
 # compilação Next.js

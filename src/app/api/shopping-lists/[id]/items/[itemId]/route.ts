@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 
 type Context = { params: { id: string; itemId: string } };
 const ALLOWED_UNITS = ['un', 'kg', 'g', 'L', 'mL', 'm³'] as const;
@@ -20,8 +20,9 @@ function validateItem(value: unknown) {
 }
 
 export async function PUT(request: Request, { params }: Context) {
-  const access = await requirePermission('edit');
+  const access = await requireFinancePermission('edit');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   let body: unknown;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 });
@@ -29,8 +30,8 @@ export async function PUT(request: Request, { params }: Context) {
   const data = validateItem(body);
   if (!data) return NextResponse.json({ error: 'Confira produto, quantidade, unidade e preço.' }, { status: 400 });
 
-  const result = await prisma.shoppingListItem.updateMany({
-    where: { id: params.itemId, listId: params.id, list: { userId: access.userId } },
+  const result = await db.shoppingListItem.updateMany({
+    where: { id: params.itemId, listId: params.id, list: { financeId: access.financeId } },
     data,
   });
   if (!result.count) return NextResponse.json({ error: 'Item não encontrado.' }, { status: 404 });
@@ -38,10 +39,11 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  const access = await requirePermission('delete');
+  const access = await requireFinancePermission('delete');
   if ('response' in access) return access.response;
-  const result = await prisma.shoppingListItem.deleteMany({
-    where: { id: params.itemId, listId: params.id, list: { userId: access.userId } },
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
+  const result = await db.shoppingListItem.deleteMany({
+    where: { id: params.itemId, listId: params.id, list: { financeId: access.financeId } },
   });
   if (!result.count) return NextResponse.json({ error: 'Item não encontrado.' }, { status: 404 });
   return NextResponse.json({ success: true });

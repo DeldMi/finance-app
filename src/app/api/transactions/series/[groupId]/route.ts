@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, TRANSACTION_TYPES, type EntityType, type TransactionType } from '@/lib/types';
 
 type Context = { params: { groupId: string } };
 export async function PUT(request: Request, { params }: Context) {
-  const access = await requirePermission('edit');
+  const access = await requireFinancePermission('edit');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const userId = access.userId;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
@@ -19,16 +20,17 @@ export async function PUT(request: Request, { params }: Context) {
   const accountId = typeof body.accountId === 'string' && body.accountId ? body.accountId : null;
   const purpose = typeof body.purpose === 'string' && ['STANDARD', 'CARD_PAYMENT', 'LOAN', 'DONATION', 'SUBSCRIPTION'].includes(body.purpose) ? body.purpose : 'STANDARD';
   if (!description || description.length > 120 || !Number.isFinite(amount) || amount <= 0 || !category || category.length > 60 || !['PAID', 'PENDING'].includes(String(body.status)) || !TRANSACTION_TYPES.includes(type as TransactionType) || !ENTITY_TYPES.includes(entity as EntityType)) return NextResponse.json({ error: 'Dados da série inválidos.' }, { status: 400 });
+  if (access.financeEntity !== 'ALL' && entity !== access.financeEntity) return NextResponse.json({ error: 'O perfil da série deve corresponder à instância financeira.' }, { status: 400 });
   try {
-    if (cardId && !await prisma.paymentCard.findFirst({ where: { id: cardId, userId } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
-    if (accountId && !await prisma.financialInstitution.findFirst({ where: { id: accountId, userId } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
-    const rows = await prisma.transaction.findMany({ where: { userId, recurrenceGroup: params.groupId }, select: { id: true, date: true, dueDate: true } });
+    if (cardId && !await db.paymentCard.findFirst({ where: { id: cardId, financeId: access.financeId } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
+    if (accountId && !await db.financialInstitution.findFirst({ where: { id: accountId, financeId: access.financeId } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
+    const rows = await db.transaction.findMany({ where: { financeId: access.financeId, recurrenceGroup: params.groupId }, select: { id: true, date: true, dueDate: true } });
     if (!rows.length) return NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });
     const today = new Date().toISOString().slice(0, 10);
     const futureIds = rows.filter(row => row.date.toISOString().slice(0, 10) > today || Boolean(row.dueDate && row.dueDate.toISOString().slice(0, 10) > today)).map(row => row.id);
-    const result = await prisma.$transaction(async (tx) => {
-      const updated = await tx.transaction.updateMany({ where: { userId, recurrenceGroup: params.groupId }, data: { description, amount, category, type: String(type), entity: String(entity), cardId, accountId, purpose, autoDebit: body.autoDebit === true, isSubscription: body.isSubscription === true, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, 300) || null : null, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
-      if (body.status === 'PAID' && futureIds.length) await tx.transaction.updateMany({ where: { userId, id: { in: futureIds } }, data: { status: 'PENDING', paidAt: null } });
+    const result = await db.$transaction(async (tx) => {
+      const updated = await tx.transaction.updateMany({ where: { financeId: access.financeId, recurrenceGroup: params.groupId }, data: { description, amount, category, type: String(type), entity: String(entity), cardId, accountId, purpose, autoDebit: body.autoDebit === true, isSubscription: body.isSubscription === true, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, 300) || null : null, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
+      if (body.status === 'PAID' && futureIds.length) await tx.transaction.updateMany({ where: { financeId: access.financeId, id: { in: futureIds } }, data: { status: 'PENDING', paidAt: null } });
       return updated;
     });
     return result.count ? NextResponse.json({ success: true, updated: result.count }) : NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });
@@ -36,11 +38,12 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  const access = await requirePermission('delete');
+  const access = await requireFinancePermission('delete');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const userId = access.userId;
   try {
-    const result = await prisma.transaction.deleteMany({ where: { userId, recurrenceGroup: params.groupId } });
+    const result = await db.transaction.deleteMany({ where: { financeId: access.financeId, recurrenceGroup: params.groupId } });
     return result.count ? NextResponse.json({ success: true, deleted: result.count }) : NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });
   } catch { return NextResponse.json({ error: 'Erro ao excluir a série.' }, { status: 500 }); }
 }

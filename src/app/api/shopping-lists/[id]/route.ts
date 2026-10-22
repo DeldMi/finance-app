@@ -1,13 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 
 type Context = { params: { id: string } };
 
 export async function PUT(request: Request, { params }: Context) {
-  const access = await requirePermission('edit');
+  const access = await requireFinancePermission('edit');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
   let body: unknown;
   try {
@@ -26,17 +27,17 @@ export async function PUT(request: Request, { params }: Context) {
     return NextResponse.json({ error: 'Informe o nome e o estado de compartilhamento.' }, { status: 400 });
   }
 
-  const current = await prisma.shoppingList.findFirst({
-    where: { id: params.id, userId: access.userId },
+  const current = await db.shoppingList.findFirst({
+    where: { id: params.id, financeId: access.financeId },
   });
   if (!current) return NextResponse.json({ error: 'Lista não encontrada.' }, { status: 404 });
 
-  const list = await prisma.shoppingList.update({
+  const list = await db.shoppingList.update({
     where: { id: current.id },
     data: {
       name,
       shareToken: data.shareEnabled
-        ? current.shareToken || randomBytes(32).toString('hex')
+        ? current.shareToken || `${access.financeOwnerId}.${randomBytes(32).toString('hex')}`
         : null,
     },
     include: { items: { orderBy: { createdAt: 'asc' } } },
@@ -46,11 +47,12 @@ export async function PUT(request: Request, { params }: Context) {
 }
 
 export async function DELETE(_request: Request, { params }: Context) {
-  const access = await requirePermission('delete');
+  const access = await requireFinancePermission('delete');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
-  const result = await prisma.shoppingList.deleteMany({
-    where: { id: params.id, userId: access.userId },
+  const result = await db.shoppingList.deleteMany({
+    where: { id: params.id, financeId: access.financeId },
   });
   if (!result.count) return NextResponse.json({ error: 'Lista não encontrada.' }, { status: 404 });
 

@@ -8,7 +8,6 @@ COPY prisma ./prisma/
 RUN npm ci
 
 COPY . .
-RUN npx prisma generate
 RUN npm run build
 
 # Estágio 2: Imagem Final de Produção

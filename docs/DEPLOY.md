@@ -57,6 +57,11 @@ quando tiver certeza de que quer apagar os dados.
 
 ## Segredos, backups e operação
 
+- O banco central guarda contas, permissões e configurações. Cada usuário tem
+  um SQLite próprio em `FINANCE_DATABASE_DIR`; mantenha essa pasta no volume
+  persistente do banco central e inclua ambos no plano de backup.
+- No Docker Compose, os bancos individuais ficam em
+  `/app/prisma/user-finances`, dentro do volume persistente `sqlite_data`.
 - Mantenha `.env` fora do Git e defina `NEXTAUTH_SECRET` forte e exclusivo.
 - Configure `NEXTAUTH_URL` com o endereço HTTPS público do deploy.
 - Use HTTPS no proxy de produção e proteja o acesso ao host e aos volumes.

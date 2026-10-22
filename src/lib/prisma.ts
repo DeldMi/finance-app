@@ -6,7 +6,7 @@ const globalForPrisma = globalThis as typeof globalThis & {
   prisma?: PrismaClient;
 };
 
-function getDatabaseUrl(): string {
+export function getDatabaseUrl(): string {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
     throw new Error('DATABASE_URL precisa estar configurada para acessar o SQLite.');

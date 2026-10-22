@@ -1,5 +1,7 @@
 # Meu Financeiro
 
+Autor do projeto: **DeldMi**. Licença: **proprietária — todos os direitos reservados**.
+
 Aplicação web para organizar finanças familiares e empresariais em um painel
 único. Registre ganhos e gastos por perfil, acompanhe o saldo e simule listas de
 compras antes de assumir uma nova despesa.

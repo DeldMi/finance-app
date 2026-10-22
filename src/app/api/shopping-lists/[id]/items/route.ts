@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 
 type Context = { params: { id: string } };
 const ALLOWED_UNITS = ['un', 'kg', 'g', 'L', 'mL', 'm³'] as const;
@@ -18,10 +18,11 @@ function validateItem(data: Record<string, unknown>) {
 }
 
 export async function POST(request: Request, { params }: Context) {
-  const access = await requirePermission('create');
+  const access = await requireFinancePermission('create');
   if ('response' in access) return access.response;
-  const ownedList = await prisma.shoppingList.findFirst({
-    where: { id: params.id, userId: access.userId },
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
+  const ownedList = await db.shoppingList.findFirst({
+    where: { id: params.id, financeId: access.financeId },
     select: { id: true },
   });
   if (!ownedList) return NextResponse.json({ error: 'Lista não encontrada.' }, { status: 404 });
@@ -36,7 +37,7 @@ export async function POST(request: Request, { params }: Context) {
   const itemData = validateItem(body as Record<string, unknown>);
   if (!itemData) return NextResponse.json({ error: 'Confira produto, quantidade, unidade e preço.' }, { status: 400 });
 
-  const item = await prisma.shoppingListItem.create({
+  const item = await db.shoppingListItem.create({
     data: { listId: ownedList.id, ...itemData },
   });
   return NextResponse.json(item, { status: 201 });

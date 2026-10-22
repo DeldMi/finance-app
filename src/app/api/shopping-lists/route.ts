@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 
 export async function GET() {
-  const access = await requirePermission('view');
+  const access = await requireFinancePermission('view');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
-  const lists = await prisma.shoppingList.findMany({
-    where: { userId: access.userId },
+  const lists = await db.shoppingList.findMany({
+    where: { financeId: access.financeId },
     include: { items: { orderBy: { createdAt: 'asc' } } },
     orderBy: { updatedAt: 'desc' },
   });
@@ -16,8 +17,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const access = await requirePermission('create');
+  const access = await requireFinancePermission('create');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
   let body: unknown;
   try {
@@ -35,8 +37,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Informe um nome de até 60 caracteres.' }, { status: 400 });
   }
 
-  const list = await prisma.shoppingList.create({
-    data: { userId: access.userId, name, items: { create: [] } },
+  const list = await db.shoppingList.create({
+    data: { userId: access.userId, financeId: access.financeId, name, items: { create: [] } },
     include: { items: true },
   });
 

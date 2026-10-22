@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 
 export async function GET() {
-  const access = await requirePermission('view');
+  const access = await requireFinancePermission('view');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const userId = access.userId;
   try {
-    return NextResponse.json(await prisma.paymentCard.findMany({ where: { userId }, orderBy: { name: 'asc' } }));
+    return NextResponse.json(await db.paymentCard.findMany({ where: { financeId: access.financeId }, orderBy: { name: 'asc' } }));
   } catch {
     return NextResponse.json({ error: 'Erro ao buscar cartões. Verifique se as migrações do banco foram aplicadas.' }, { status: 500 });
   }
 }
 export async function POST(request: Request) {
-  const access = await requirePermission('create');
+  const access = await requireFinancePermission('create');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const userId = access.userId;
   let body: Record<string, unknown>;
   try { body = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'Corpo inválido.' }, { status: 400 }); }
@@ -25,6 +27,6 @@ export async function POST(request: Request) {
   const closingDay = body.closingDay === '' || body.closingDay == null ? null : Number(body.closingDay);
   const dueDay = body.dueDay === '' || body.dueDay == null ? null : Number(body.dueDay);
   if (!name || name.length > 60 || (lastFour && !/^\d{4}$/.test(lastFour)) || (limit !== null && (!Number.isFinite(limit) || limit < 0)) || [closingDay, dueDay].some(day => day !== null && (!Number.isInteger(day) || day < 1 || day > 31))) return NextResponse.json({ error: 'Confira nome, limite, final do cartão e dias.' }, { status: 400 });
-  try { return NextResponse.json(await prisma.paymentCard.create({ data: { userId, name, paymentType, brand: typeof body.brand === 'string' ? body.brand.trim().slice(0, 30) || null : null, lastFour: lastFour || null, creditLimit: paymentType === 'CREDIT' ? limit : null, closingDay, dueDay } }), { status: 201 }); }
+  try { return NextResponse.json(await db.paymentCard.create({ data: { userId, financeId: access.financeId, name, paymentType, brand: typeof body.brand === 'string' ? body.brand.trim().slice(0, 30) || null : null, lastFour: lastFour || null, creditLimit: paymentType === 'CREDIT' ? limit : null, closingDay, dueDay } }), { status: 201 }); }
   catch { return NextResponse.json({ error: 'Erro ao cadastrar cartão.' }, { status: 500 }); }
 }

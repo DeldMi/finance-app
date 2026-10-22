@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { requirePermission } from '@/lib/permissions';
+import { getOwnerFinanceDatabase } from '@/lib/finance-database';
+import { requireFinancePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, TRANSACTION_TYPES, type EntityType, type TransactionType } from '@/lib/types';
 
 function addRecurrence(date: Date, recurrence: string, occurrence: number): Date {
@@ -27,20 +27,21 @@ function addRecurrence(date: Date, recurrence: string, occurrence: number): Date
 }
 
 export async function GET() {
-  const access = await requirePermission('view');
+  const access = await requireFinancePermission('view');
   if ('response' in access) return access.response;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const id = access.userId;
   try {
-    return NextResponse.json(await prisma.transaction.findMany({ where: { userId: id }, include: { card: true }, orderBy: { date: 'desc' } }));
+    return NextResponse.json(await db.transaction.findMany({ where: { financeId: access.financeId }, include: { card: true }, orderBy: { date: 'desc' } }));
   } catch {
     return NextResponse.json({ error: 'Erro ao buscar lançamentos.' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
-  const access = await requirePermission('create');
+  const access = await requireFinancePermission('create');
   if ('response' in access) return access.response;
-  const id = access.userId;
+  const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   let data: Record<string, unknown>;
   try { data = await request.json() as Record<string, unknown>; } catch { return NextResponse.json({ error: 'Corpo JSON inválido.' }, { status: 400 }); }
   const description = typeof data.description === 'string' ? data.description.trim() : '';
@@ -60,10 +61,11 @@ export async function POST(request: Request) {
   if (!description || description.length > 120 || !Number.isFinite(amount) || amount <= 0 || category.length > 60 || !TRANSACTION_TYPES.includes(data.type as TransactionType) || !ENTITY_TYPES.includes(data.entity as EntityType) || Number.isNaN(date.getTime()) || (dueDate && Number.isNaN(dueDate.getTime())) || !Number.isInteger(installments) || installments < 1 || installments > 60 || (recurrence && (!recurrenceEndDate || Number.isNaN(recurrenceEndDate.getTime()) || recurrenceEndDate < date))) {
     return NextResponse.json({ error: 'Confira descrição, valor, datas, tipo, perfil e parcelas.' }, { status: 400 });
   }
+  if (access.financeEntity !== 'ALL' && data.entity !== access.financeEntity) return NextResponse.json({ error: 'O perfil do lançamento deve corresponder à instância financeira.' }, { status: 400 });
   try {
-    if (cardId && !await prisma.paymentCard.findFirst({ where: { id: cardId, userId: id } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
-    const card = cardId ? await prisma.paymentCard.findFirst({ where: { id: cardId, userId: id } }) : null;
-    if (accountId && !await prisma.financialInstitution.findFirst({ where: { id: accountId, userId: id } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
+    if (cardId && !await db.paymentCard.findFirst({ where: { id: cardId, financeId: access.financeId } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
+    const card = cardId ? await db.paymentCard.findFirst({ where: { id: cardId, financeId: access.financeId } }) : null;
+    if (accountId && !await db.financialInstitution.findFirst({ where: { id: accountId, financeId: access.financeId } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
     if (purpose === 'CARD_PAYMENT' && !cardId) return NextResponse.json({ error: 'Selecione o cartão cuja fatura será paga.' }, { status: 400 });
     if (autoDebit && !accountId && !cardId) return NextResponse.json({ error: 'Selecione a conta ou o cartão do débito automático.' }, { status: 400 });
     if (purpose === 'CARD_PAYMENT' && card?.paymentType !== 'CREDIT') return NextResponse.json({ error: 'A fatura só pode ser paga para cartão de crédito.' }, { status: 400 });
@@ -85,9 +87,9 @@ export async function POST(request: Request) {
       const isFuture = itemDate.toISOString().slice(0, 10) > today || Boolean(itemDue && itemDue.toISOString().slice(0, 10) > today);
       const isCreditCharge = purpose !== 'CARD_PAYMENT' && data.type === 'EXPENSE' && card?.paymentType === 'CREDIT';
       const itemStatus = isFuture || isCreditCharge ? 'PENDING' : status;
-      return { userId: id, description: installments > 1 ? `${description} (${index + 1}/${installments})` : description, amount, type: String(data.type), entity: String(data.entity), category, date: itemDate, dueDate: itemDue, status: itemStatus, paidAt: itemStatus === 'PAID' ? itemDate : null, recurrence, recurrenceGroup, recurrenceEndDate, installmentGroup: group, installmentNumber: installments > 1 ? index + 1 : null, installmentTotal: installments > 1 ? installments : null, cardId, accountId: linkedAccountId, purpose, autoDebit, isSubscription, notes: typeof data.notes === 'string' ? data.notes.trim().slice(0, 300) || null : null };
+      return { userId: access.userId, financeId: access.financeId, description: installments > 1 ? `${description} (${index + 1}/${installments})` : description, amount, type: String(data.type), entity: String(data.entity), category, date: itemDate, dueDate: itemDue, status: itemStatus, paidAt: itemStatus === 'PAID' ? itemDate : null, recurrence, recurrenceGroup, recurrenceEndDate, installmentGroup: group, installmentNumber: installments > 1 ? index + 1 : null, installmentTotal: installments > 1 ? installments : null, cardId, accountId: linkedAccountId, purpose, autoDebit, isSubscription, notes: typeof data.notes === 'string' ? data.notes.trim().slice(0, 300) || null : null };
     });
-    await prisma.transaction.createMany({ data: rows });
+    await db.transaction.createMany({ data: rows });
     return NextResponse.json({ success: true }, { status: 201 });
   } catch {
     return NextResponse.json({ error: 'Erro ao salvar lançamento.' }, { status: 500 });

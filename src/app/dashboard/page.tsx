@@ -64,6 +64,10 @@ type AdminUser = {
   permissions: string;
 };
 type ServerBackupFile = { name: string; modifiedAt: string };
+type FinanceInstance = { id: string; name: string; entity: 'ALL' | EntityType; ownerId: string; owner: { name: string }; permissions: string[] };
+type FinanceMemberView = { id: string; name: string; email: string; permissions: string[] };
+type FinancePermission = 'view' | 'create' | 'edit' | 'delete';
+type Theme = 'light' | 'dark';
 
 type ReportModel = { name: string; html: string; css: string };
 type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
@@ -117,7 +121,15 @@ async function readJson(response: Response) {
 export default function DashboardPage() {
   const { data: session } = useSession();
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
+  const [theme, setTheme] = useState<Theme>('light');
   const [tab, setTab] = useState<Tab>('overview');
+  const [financeInstances, setFinanceInstances] = useState<FinanceInstance[]>([]);
+  const [activeFinanceId, setActiveFinanceId] = useState('');
+  const [newFinanceName, setNewFinanceName] = useState('');
+  const [newFinanceEntity, setNewFinanceEntity] = useState<EntityType>('PHYSICAL');
+  const [financeMembers, setFinanceMembers] = useState<FinanceMemberView[]>([]);
+  const [shareEmail, setShareEmail] = useState('');
+  const [sharePermissions, setSharePermissions] = useState<FinancePermission[]>(['view']);
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
@@ -201,17 +213,48 @@ export default function DashboardPage() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('finance-theme');
+    const nextTheme: Theme = savedTheme === 'dark' ? 'dark' : 'light';
+    document.documentElement.dataset.theme = nextTheme;
+    setTheme(nextTheme);
+  }, []);
+
+  function changeTheme(nextTheme: Theme) {
+    setTheme(nextTheme);
+    localStorage.setItem('finance-theme', nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+  }
+
   const categories = useMemo(() => {
     const matching = allCategories.filter(item => item.entity === 'ALL' || item.entity === entity).sort((a, b) => a.entity === entity ? 1 : b.entity === entity ? -1 : 0);
     return Array.from(new Map(matching.map(item => [item.name.toLocaleLowerCase('pt-BR'), item])).values());
   }, [allCategories, entity]);
-  const canCreate = session?.user.role === 'ADMIN' || session?.user.permissions.includes('create');
-  const canEdit = session?.user.role === 'ADMIN' || session?.user.permissions.includes('edit');
-  const canDelete = session?.user.role === 'ADMIN' || session?.user.permissions.includes('delete');
+  const activeFinance = financeInstances.find((finance) => finance.id === activeFinanceId);
+  const canCreate = activeFinance?.permissions.includes('create') ?? false;
+  const canEdit = activeFinance?.permissions.includes('edit') ?? false;
+  const canDelete = activeFinance?.permissions.includes('delete') ?? false;
 
   const refresh = useCallback(async () => {
     setLoading(true); setError('');
     try {
+      const financeResponse = await fetch('/api/finances');
+      const financeResult = await readJson(financeResponse);
+      const availableFinances = financeResult as FinanceInstance[];
+      if (!financeResponse.ok) throw new Error(financeResult.error || 'Não foi possível carregar as instâncias financeiras.');
+      if (!availableFinances.length) throw new Error('Crie uma instância financeira em Configurações para começar.');
+      const savedFinanceId = localStorage.getItem('active-finance-id');
+      const activeFinance = availableFinances.find((finance) => finance.id === savedFinanceId) || availableFinances[0];
+      if (!activeFinance) throw new Error('Nenhuma instância financeira disponível.');
+      const activation = await fetch('/api/finances/active', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ financeId: activeFinance.id }) });
+      const activationResult = await readJson(activation);
+      if (!activation.ok) throw new Error(activationResult.error || 'Não foi possível selecionar a instância financeira.');
+      localStorage.setItem('active-finance-id', activeFinance.id);
+      setFinanceInstances(availableFinances);
+      setActiveFinanceId(activeFinance.id);
+      setEntity(activeFinance.entity === 'LEGAL' ? 'LEGAL' : 'PHYSICAL');
+      setCategoryEntity(activeFinance.entity === 'ALL' ? 'ALL' : activeFinance.entity);
+      setFilterEntity('ALL');
       const responses = await Promise.all([fetch('/api/transactions'), fetch('/api/cards'), fetch('/api/categories'), fetch('/api/institutions')]);
       const data = await Promise.all(responses.map(readJson));
       const failedIndex = responses.findIndex(response => !response.ok);
@@ -221,6 +264,10 @@ export default function DashboardPage() {
     finally { setLoading(false); }
   }, []);
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => {
+    if (activeFinance && activeFinance.ownerId === session?.user.id) void loadFinanceMembers(activeFinance.id);
+    else setFinanceMembers([]);
+  }, [activeFinanceId, financeInstances, session?.user.id]);
 
   const visibleEntries = useMemo(() => {
     const query = descriptionFilter.trim().toLocaleLowerCase('pt-BR');
@@ -530,6 +577,45 @@ export default function DashboardPage() {
     setAdminUsers(result);
   }
 
+  async function createFinance(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true); setError('');
+    try {
+      const response = await fetch('/api/finances', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newFinanceName, entity: newFinanceEntity }) });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Não foi possível criar a instância financeira.');
+      localStorage.setItem('active-finance-id', result.id);
+      setNewFinanceName('');
+      await refresh();
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao criar a instância financeira.'); }
+    finally { setBusy(false); }
+  }
+
+  async function loadFinanceMembers(financeId = activeFinanceId) {
+    if (!financeId) return;
+    const response = await fetch(`/api/finances/${financeId}/members`);
+    const result = await readJson(response);
+    if (!response.ok) { setFinanceMembers([]); return; }
+    setFinanceMembers(result as FinanceMemberView[]);
+  }
+
+  async function shareFinance(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!activeFinanceId) return;
+    const response = await fetch(`/api/finances/${activeFinanceId}/members`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: shareEmail, permissions: sharePermissions }) });
+    const result = await readJson(response);
+    if (!response.ok) { setError(result.error || 'Não foi possível compartilhar esta instância.'); return; }
+    setShareEmail(''); await loadFinanceMembers(); await refresh();
+  }
+
+  async function removeFinanceMember(userId: string) {
+    if (!activeFinanceId || !window.confirm('Remover o acesso desta pessoa à instância financeira?')) return;
+    const response = await fetch(`/api/finances/${activeFinanceId}/members`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId }) });
+    const result = await readJson(response);
+    if (!response.ok) { setError(result.error || 'Não foi possível remover o acesso.'); return; }
+    await loadFinanceMembers();
+  }
+
   async function saveAdminUser(user: AdminUser) {
     const response = await fetch(`/api/admin/users/${user.id}`, {
       method: 'PUT',
@@ -699,7 +785,9 @@ export default function DashboardPage() {
     await refresh();
   }
 
-  const hasViewPermission = session?.user.role === 'ADMIN' || session?.user.permissions.includes('view');
+  const hasViewPermission = session?.user.role === 'ADMIN'
+    || session?.user.permissions.includes('view')
+    || financeInstances.some((finance) => finance.permissions.includes('view'));
 
   if (session?.user && !hasViewPermission) {
     return (
@@ -730,15 +818,9 @@ export default function DashboardPage() {
           <strong>{currentTime ? new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(currentTime) : '--'}</strong>
           <time>{currentTime ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(currentTime) : '--:--:--'}</time>
         </div>
-        <div className="segmented-control" aria-label="Filtrar por perfil">
-          {([['ALL', 'Geral'], ['PHYSICAL', 'Pessoal · PF'], ['LEGAL', 'Empresa · PJ']] as const).map(([value, label]) => (
-          <button key={value} type="button" className="segment-button" aria-pressed={filterEntity === value}
-          onClick={() => { setFilterEntity(value); setCategoryEntity(value); if (value !== 'ALL') setEntity(value); }}>
-          {label}
-          </button>
-        ))}
-        </div>
-      <button className="button button-secondary" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
+        <label className="finance-switcher"><span>Instancia financeira</span><select className="select" value={activeFinanceId} onChange={(event) => { localStorage.setItem('active-finance-id', event.target.value); setActiveFinanceId(event.target.value); void refresh(); }}><option value="" disabled>Selecione uma instancia</option>{financeInstances.map((finance) => <option key={finance.id} value={finance.id}>{finance.name} &middot; {finance.entity === 'LEGAL' ? 'PJ' : finance.entity === 'ALL' ? 'Geral' : 'PF'}{finance.ownerId !== session?.user.id ? ` &middot; ${finance.owner.name}` : ''}</option>)}</select></label>
+        <label className="theme-switcher"><span>Tema</span><select className="select" aria-label="Tema da interface" value={theme} onChange={(event) => changeTheme(event.target.value as Theme)}><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
+        <button className="button button-secondary header-signout" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
       </div>
     </header>
 
@@ -1046,6 +1128,12 @@ export default function DashboardPage() {
                               </section>}
 
                             {tab === 'settings' && <div className="settings-layout">
+                            <section className="panel settings-panel">
+                              <h2 className="panel-title">Instâncias financeiras</h2>
+                              <p className="panel-description">Crie um conjunto separado para cada finança. Os dados só ficam visíveis para quem tiver acesso a essa instância.</p>
+                              <form className="finance-create-grid" onSubmit={createFinance}><Field label="Nome da instância"><input className="input" maxLength={80} value={newFinanceName} onChange={(event) => setNewFinanceName(event.target.value)} placeholder="Ex.: Casa, Loja Centro" required /></Field><Field label="Tipo"><select className="select" value={newFinanceEntity} onChange={(event) => setNewFinanceEntity(event.target.value as EntityType)}><option value="PHYSICAL">Pessoal (PF)</option><option value="LEGAL">Empresa (PJ)</option></select></Field><button className="button button-primary" type="submit" disabled={busy}>Criar instância</button></form>
+                              {activeFinance && activeFinance.ownerId === session?.user.id && <div className="finance-sharing"><h3 className="settings-section-title">Compartilhar “{activeFinance.name}”</h3><p className="panel-description">Informe o e-mail de uma conta liberada e marque as ações que ela poderá fazer nesta instância.</p><form className="finance-share-grid" onSubmit={shareFinance}><Field label="E-mail do usuário"><input className="input" type="email" value={shareEmail} onChange={(event) => setShareEmail(event.target.value)} required /></Field><div className="finance-share-permissions">{(['view', 'create', 'edit', 'delete'] as const).map((permission) => <label className="check-field" key={permission}><input type="checkbox" checked={sharePermissions.includes(permission)} disabled={permission === 'view'} onChange={(event) => setSharePermissions((current) => event.target.checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission === 'view' ? 'Visualizar' : permission === 'create' ? 'Criar' : permission === 'edit' ? 'Editar' : 'Excluir'}</label>)}</div><button className="button button-secondary" type="submit">Salvar compartilhamento</button></form><div className="finance-member-list">{financeMembers.map((member) => <div className="finance-member-row" key={member.id}><div><strong>{member.name}</strong><small className="muted-block">{member.email} · {member.permissions.map((permission) => permission === 'view' ? 'visualizar' : permission === 'create' ? 'criar' : permission === 'edit' ? 'editar' : 'excluir').join(', ')}</small></div>{member.id !== activeFinance.ownerId && <button className="button button-danger button-compact" type="button" onClick={() => void removeFinanceMember(member.id)}>Remover acesso</button>}</div>)}</div></div>}
+                            </section>
                             <section className="panel settings-panel">
                               <div className="settings-heading"><div><h2 className="panel-title">Backup e restauração</h2><p className="panel-description">Escolha os dados que deseja salvar ou recuperar na sua conta.</p></div></div>
                               <div className="settings-section"><h3 className="settings-section-title">Dados incluídos</h3><div className="backup-data-grid">{([['transactions', 'Lançamentos'], ['cards', 'Cartões'], ['accounts', 'Bancos e contas'], ['categories', 'Categorias'], ['shoppingLists', 'Listas de compras']] as const).map(([key, label]) => <label className="backup-option" key={key}><input type="checkbox" checked={backupTypes.includes(key)} onChange={(event) => { setBackupTypes((current) => event.target.checked ? [...current, key] : current.filter((item) => item !== key)); setBackupSettingsSaved(false); }} /><span>{label}</span></label>)}</div></div>
