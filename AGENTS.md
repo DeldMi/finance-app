@@ -39,6 +39,11 @@ simulação temporária de compras comparada ao saldo.
 - Criar migrações Prisma quando alterar o schema e manter o SQLite local fora do
   Git.
 
+## Versionamento
+
+- Atualize a versão em `package.json` e `package-lock.json` em toda alteração entregue.
+- Siga versionamento semântico: PATCH para correções e ajustes compatíveis, MINOR para novas funcionalidades compatíveis e MAJOR para mudanças incompatíveis.
+
 ## Verificação
 
 Antes de concluir alterações relevantes, execute:
