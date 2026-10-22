@@ -18,7 +18,6 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !(await compare(password, user.password))) return null;
-        if (user.role !== 'ADMIN' && !user.permissions.includes('view')) return null;
 
         return { id: user.id, name: user.name, email: user.email };
       },

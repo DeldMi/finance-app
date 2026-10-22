@@ -13,8 +13,8 @@ export async function PUT(request: Request, { params }: Context) {
 
   let body: unknown;
   try { body = await request.json(); }
-  catch { return NextResponse.json({ error: 'JSON inv?lido.' }, { status: 400 }); }
-  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Dados inv?lidos.' }, { status: 400 });
+  catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
+  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 });
 
   const data = body as Record<string, unknown>;
   const name = typeof data.name === 'string' ? data.name.trim() : '';
@@ -23,11 +23,11 @@ export async function PUT(request: Request, { params }: Context) {
   const initialBalance = Number(data.initialBalance);
   const entity = data.entity;
   if (!name || name.length > 60 || !institution || institution.length > 80 || !ACCOUNT_TYPES.includes(accountType) || !ENTITY_TYPES.includes(entity as EntityType) || !Number.isFinite(initialBalance)) {
-    return NextResponse.json({ error: 'Confira nome, institui??o, tipo, perfil e saldo inicial.' }, { status: 400 });
+    return NextResponse.json({ error: 'Confira nome, instituição, tipo, perfil e saldo inicial.' }, { status: 400 });
   }
 
   const account = await prisma.financialInstitution.findFirst({ where: { id: params.id, userId: access.userId } });
-  if (!account) return NextResponse.json({ error: 'Conta n?o encontrada.' }, { status: 404 });
+  if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
 
   const updated = await prisma.financialInstitution.update({
     where: { id: account.id },
@@ -44,5 +44,5 @@ export async function DELETE(_request: Request, { params }: Context) {
   const result = await prisma.financialInstitution.deleteMany({ where: { id: params.id, userId: access.userId } });
   return result.count
     ? NextResponse.json({ success: true })
-    : NextResponse.json({ error: 'Conta n?o encontrada.' }, { status: 404 });
+    : NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
 }

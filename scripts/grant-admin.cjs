@@ -1,4 +1,4 @@
-﻿const { PrismaClient } = require('@prisma/client');
+const { PrismaClient } = require('@prisma/client');
 
 async function main() {
   const email = process.argv[2]?.trim().toLowerCase();

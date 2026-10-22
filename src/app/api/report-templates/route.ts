@@ -1,4 +1,4 @@
-﻿import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/permissions';

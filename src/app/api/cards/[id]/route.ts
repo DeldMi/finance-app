@@ -11,8 +11,8 @@ export async function PUT(request: Request, { params }: Context) {
 
   let body: unknown;
   try { body = await request.json(); }
-  catch { return NextResponse.json({ error: 'JSON inv?lido.' }, { status: 400 }); }
-  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Dados inv?lidos.' }, { status: 400 });
+  catch { return NextResponse.json({ error: 'JSON inválido.' }, { status: 400 }); }
+  if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Dados inválidos.' }, { status: 400 });
 
   const data = body as Record<string, unknown>;
   const name = typeof data.name === 'string' ? data.name.trim() : '';
@@ -23,11 +23,11 @@ export async function PUT(request: Request, { params }: Context) {
   const dueDay = data.dueDay === '' || data.dueDay == null ? null : Number(data.dueDay);
 
   if (!name || name.length > 60 || (lastFour && !/^\d{4}$/.test(lastFour)) || (creditLimit !== null && (!Number.isFinite(creditLimit) || creditLimit < 0)) || [closingDay, dueDay].some((day) => day !== null && (!Number.isInteger(day) || day < 1 || day > 31))) {
-    return NextResponse.json({ error: 'Confira nome, limite, final do cart?o e dias.' }, { status: 400 });
+    return NextResponse.json({ error: 'Confira nome, limite, final do cartão e dias.' }, { status: 400 });
   }
 
   const card = await prisma.paymentCard.findFirst({ where: { id: params.id, userId: access.userId } });
-  if (!card) return NextResponse.json({ error: 'Cart?o n?o encontrado.' }, { status: 404 });
+  if (!card) return NextResponse.json({ error: 'Cartão não encontrado.' }, { status: 404 });
 
   const updated = await prisma.paymentCard.update({
     where: { id: card.id },
@@ -53,5 +53,5 @@ export async function DELETE(_request: Request, { params }: Context) {
   const result = await prisma.paymentCard.deleteMany({ where: { id: params.id, userId: access.userId } });
   return result.count
     ? NextResponse.json({ success: true })
-    : NextResponse.json({ error: 'Cart?o n?o encontrado.' }, { status: 404 });
+    : NextResponse.json({ error: 'Cartão não encontrado.' }, { status: 404 });
 }

@@ -1,14 +1,70 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
+import Link from 'next/link';
+import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import PurchaseSimulator from '@/components/PurchaseSimulator';
 import type { EntityType, TransactionType } from '@/lib/types';
 
-type Card = { id: string; name: string; paymentType: 'CREDIT' | 'DEBIT'; brand?: string | null; lastFour?: string | null; creditLimit?: number | null; closingDay?: number | null; dueDay?: number | null };
-type Account = { id: string; name: string; institution: string; accountType: string; entity: EntityType; initialBalance: number };
-type Category = { id: string; name: string; description: string; entity: 'ALL' | EntityType };
-type Entry = { id: string; description: string; amount: number; type: TransactionType; entity: EntityType; category: string; date: string; dueDate?: string | null; status: 'PAID' | 'PENDING'; recurrence?: string | null; recurrenceGroup?: string | null; recurrenceEndDate?: string | null; installmentNumber?: number | null; installmentTotal?: number | null; cardId?: string | null; card?: Card | null; accountId?: string | null; purpose?: string; autoDebit?: boolean; isSubscription?: boolean; notes?: string | null };
+type Card = {
+  id: string;
+  name: string;
+  paymentType: 'CREDIT' | 'DEBIT';
+  brand?: string | null;
+  lastFour?: string | null;
+  creditLimit?: number | null;
+  closingDay?: number | null;
+  dueDay?: number | null;
+};
+
+type Account = {
+  id: string;
+  name: string;
+  institution: string;
+  accountType: string;
+  entity: EntityType;
+  initialBalance: number;
+};
+
+type Category = {
+  id: string;
+  name: string;
+  description: string;
+  entity: 'ALL' | EntityType;
+};
+
+type Entry = {
+  id: string;
+  description: string;
+  amount: number;
+  type: TransactionType;
+  entity: EntityType;
+  category: string;
+  date: string;
+  dueDate?: string | null;
+  status: 'PAID' | 'PENDING';
+  recurrence?: string | null;
+  recurrenceGroup?: string | null;
+  recurrenceEndDate?: string | null;
+  installmentNumber?: number | null;
+  installmentTotal?: number | null;
+  cardId?: string | null;
+  card?: Card | null;
+  accountId?: string | null;
+  purpose?: string;
+  autoDebit?: boolean;
+  isSubscription?: boolean;
+  notes?: string | null;
+};
+
+type AdminUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'USER' | 'BLOCKED';
+  permissions: string;
+};
+
+type ReportModel = { name: string; html: string; css: string };
 type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
 type SortKey = 'description' | 'category' | 'entity' | 'date' | 'dueDate' | 'status' | 'amount';
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -58,13 +114,14 @@ async function readJson(response: Response) {
 }
 
 export default function DashboardPage() {
+  const { data: session } = useSession();
   const [tab, setTab] = useState<Tab>('overview');
   const [entryModalOpen, setEntryModalOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Entry | null>(null);
   const [editingCard, setEditingCard] = useState<Card | null>(null);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
-  const [adminUsers, setAdminUsers] = useState<any[]>([]);
-  const [reportModels, setReportModels] = useState<any[]>([]);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [reportModels, setReportModels] = useState<ReportModel[]>([]);
   const [reportModelName, setReportModelName] = useState('');
   const [reportPreview, setReportPreview] = useState('');
   const [filterEntity, setFilterEntity] = useState<'ALL' | EntityType>('ALL');
@@ -129,6 +186,9 @@ export default function DashboardPage() {
     const matching = allCategories.filter(item => item.entity === 'ALL' || item.entity === entity).sort((a, b) => a.entity === entity ? 1 : b.entity === entity ? -1 : 0);
     return Array.from(new Map(matching.map(item => [item.name.toLocaleLowerCase('pt-BR'), item])).values());
   }, [allCategories, entity]);
+  const canCreate = session?.user.role === 'ADMIN' || session?.user.permissions.includes('create');
+  const canEdit = session?.user.role === 'ADMIN' || session?.user.permissions.includes('edit');
+  const canDelete = session?.user.role === 'ADMIN' || session?.user.permissions.includes('delete');
 
   const refresh = useCallback(async () => {
     setLoading(true); setError('');
@@ -174,20 +234,67 @@ export default function DashboardPage() {
   const due = visibleEntries.filter(item => item.status === 'PENDING' && item.type === 'EXPENSE').reduce((sum, item) => sum + item.amount, 0);
   const incoming = visibleEntries.filter(item => item.status === 'PENDING' && item.type === 'INCOME').reduce((sum, item) => sum + item.amount, 0);
   const balance = income - expenses;
-  const categoryOptions = useMemo(() => Array.from(new Set([...categories.map(item => item.name), ...entries.map(item => item.category).filter(Boolean)])).sort((a, b) => a.localeCompare(b, 'pt-BR')), [categories, entries]);
+  const profileEntries = entries.filter((item) => filterEntity === 'ALL' || item.entity === filterEntity);
+  const filterCategories = allCategories.filter((item) => filterEntity === 'ALL' || item.entity === 'ALL' || item.entity === filterEntity);
+  const categoryOptions = useMemo(() => Array.from(new Set([...filterCategories.map((item) => item.name), ...profileEntries.map((item) => item.category).filter(Boolean)])).sort((a, b) => a.localeCompare(b, 'pt-BR')), [filterCategories, profileEntries]);
   const expenseCategories = Object.entries(paid.filter(item => item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT').reduce<Record<string, number>>((map, item) => { map[item.category || 'Geral'] = (map[item.category || 'Geral'] || 0) + item.amount; return map; }, {})).sort((a, b) => b[1] - a[1]);
-  const visibleCategories = allCategories.filter(item => (filterEntity === 'ALL' || item.entity === 'ALL' || item.entity === filterEntity) && `${item.name} ${item.description}`.toLocaleLowerCase('pt-BR').includes(categorySearch.toLocaleLowerCase('pt-BR'))).sort((a, b) => {
+  const visibleCategories = allCategories.filter(item => (categoryEntity === 'ALL' || item.entity === 'ALL' || item.entity === categoryEntity) && `${item.name} ${item.description}`.toLocaleLowerCase('pt-BR').includes(categorySearch.toLocaleLowerCase('pt-BR'))).sort((a, b) => {
     const order = a[categorySort].localeCompare(b[categorySort], 'pt-BR');
     return categorySortDirection === 'asc' ? order : -order;
   });
 
-  function sortBy(key: SortKey) { if (sortKey === key) setSortDirection(current => current === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDirection('asc'); } }
-  function sortCategories(key: 'name' | 'description') { if (categorySort === key) setCategorySortDirection(current => current === 'asc' ? 'desc' : 'asc'); else { setCategorySort(key); setCategorySortDirection('asc'); } }
-  const entryCategories = categories.filter(item => item.entity === 'ALL' || item.entity === entity);
-  const accountBalances = accounts.map(account => ({ ...account, balance: account.initialBalance + entries.filter(item => item.accountId === account.id && item.status === 'PAID').reduce((sum, item) => sum + (item.type === 'INCOME' ? item.amount : -item.amount), 0) }));
-  function resetForm() { setDescription(''); setAmount(''); setCategory('Geral'); setDate(isoToday); setDueDate(''); setStatus('PAID'); setInstallments('1'); setRecurrence(''); setRecurrenceEndDate(''); setCardId(''); setAccountId(''); setPurpose('STANDARD'); setAutoDebit(false); setIsSubscription(false); setNotes(''); setEditing(null); setEditingSeriesGroup(null); }
+  function sortBy(key: SortKey) {
+    if (sortKey === key) {
+      setSortDirection((current) => current === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    setSortKey(key);
+    setSortDirection('asc');
+  }
+
+  function sortCategories(key: 'name' | 'description') {
+    if (categorySort === key) {
+      setCategorySortDirection((current) => current === 'asc' ? 'desc' : 'asc');
+      return;
+    }
+    setCategorySort(key);
+    setCategorySortDirection('asc');
+  }
+
+  const entryCategories = categories.filter((item) => item.entity === 'ALL' || item.entity === entity);
+  const accountBalances = accounts.map((account) => {
+    const movement = entries
+      .filter((item) => item.accountId === account.id && item.status === 'PAID')
+      .reduce((total, item) => total + (item.type === 'INCOME' ? item.amount : -item.amount), 0);
+    return { ...account, balance: account.initialBalance + movement };
+  });
+
+  function resetForm() {
+    setDescription('');
+    setAmount('');
+    setCategory('Geral');
+    setDate(isoToday);
+    setDueDate('');
+    setStatus('PAID');
+    setInstallments('1');
+    setRecurrence('');
+    setRecurrenceEndDate('');
+    setCardId('');
+    setAccountId('');
+    setPurpose('STANDARD');
+    setAutoDebit(false);
+    setIsSubscription(false);
+    setNotes('');
+    setEditing(null);
+    setEditingSeriesGroup(null);
+    setEntryModalOpen(false);
+  }
+
   async function saveEntry(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError('');
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+
     try {
       const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
       const saveGroup = submitter?.value === 'group' && Boolean(editing?.recurrenceGroup);
@@ -196,24 +303,249 @@ export default function DashboardPage() {
         : editing
           ? `/api/transactions/${editing.id}`
           : '/api/transactions';
-      const method = editing ? 'PUT' : 'POST';
-      const payload = { description, amount, type, entity, category: category || 'Geral', date, dueDate: dueDate || null, status, installments: editing ? 1 : installments, recurrence: editing ? null : recurrence || null, recurrenceEndDate: recurrence ? recurrenceEndDate : null, cardId: cardId || null, accountId: accountId || null, purpose, autoDebit, isSubscription, notes };
-      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      const result = await readJson(response); if (!response.ok) throw new Error(result.error || 'Não foi possível salvar.');
-      resetForm(); setEntryModalOpen(false); await refresh();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao salvar lançamento.'); }
-    finally { setBusy(false); }
+      const payload = {
+        description,
+        amount,
+        type,
+        entity,
+        category: category || 'Geral',
+        date,
+        dueDate: dueDate || null,
+        status,
+        installments: editing ? 1 : installments,
+        recurrence: editing ? null : recurrence || null,
+        recurrenceEndDate: recurrence ? recurrenceEndDate : null,
+        cardId: cardId || null,
+        accountId: accountId || null,
+        purpose,
+        autoDebit,
+        isSubscription,
+        notes,
+      };
+      const response = await fetch(url, {
+        method: editing ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'N\u00e3o foi poss\u00edvel salvar.');
+
+      resetForm();
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao salvar lan\u00e7amento.');
+    } finally {
+      setBusy(false);
+    }
   }
-  function startEdit(item: Entry) { setEditing(item); setEditingSeriesGroup(null); setEntryModalOpen(true); setDescription(item.description.replace(/ \(\d+\/\d+\)$/, '')); setAmount(String(item.amount)); setType(item.type); setEntity(item.entity); setCategory(item.category); setDate(item.date.slice(0, 10)); setDueDate(item.dueDate?.slice(0, 10) || ''); setStatus(item.status); setCardId(item.cardId || ''); setAccountId(item.accountId || ''); setPurpose(item.purpose || 'STANDARD'); setAutoDebit(Boolean(item.autoDebit)); setIsSubscription(Boolean(item.isSubscription)); setNotes(item.notes || ''); setInstallments('1'); setRecurrence(''); setRecurrenceEndDate(''); setTab('entries'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-  function startEditSeries(item: Entry) { if (!item.recurrenceGroup) return; setEntryModalOpen(true); setEditing(item); setEditingSeriesGroup(item.recurrenceGroup); setDescription(item.description); setAmount(String(item.amount)); setType(item.type); setEntity(item.entity); setCategory(item.category); setStatus(item.status); setCardId(item.cardId || ''); setAccountId(item.accountId || ''); setPurpose(item.purpose || 'STANDARD'); setAutoDebit(Boolean(item.autoDebit)); setIsSubscription(Boolean(item.isSubscription)); setNotes(item.notes || ''); setTab('entries'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
-  async function removeEntry(item: Entry) { if (!window.confirm(`Excluir “${item.description}”?`)) return; const response = await fetch(`/api/transactions/${item.id}`, { method: 'DELETE' }); const result = await readJson(response); if (!response.ok) { setError(result.error || 'Erro ao excluir.'); return; } await refresh(); }
-  async function changeEntryStatus(item: Entry) { const nextStatus = item.status === 'PAID' ? 'PENDING' : 'PAID'; const response = await fetch(`/api/transactions/${item.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) }); const result = await readJson(response); if (!response.ok) { setError(result.error || 'Erro ao atualizar situação.'); return; } await refresh(); }
-  async function removeSeries(item: Entry) { if (!item.recurrenceGroup || !window.confirm(`Excluir todas as ocorrências de “${item.description}”?`)) return; const response = await fetch(`/api/transactions/series/${item.recurrenceGroup}`, { method: 'DELETE' }); const result = await readJson(response); if (!response.ok) { setError(result.error || 'Erro ao excluir a série.'); return; } await refresh(); }
-  async function saveCard(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(''); try { const response = await fetch(editingCard ? `/api/cards/${editingCard.id}` : '/api/cards', { method: editingCard ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: cardName, paymentType: cardPaymentType, brand: cardBrand, lastFour, creditLimit, closingDay, dueDay: cardDueDay }) }); const result = await readJson(response); if (!response.ok) throw new Error(result.error || 'Erro ao cadastrar cartão.'); setCardName(''); setCardBrand(''); setLastFour(''); setCreditLimit(''); setClosingDay(''); setCardDueDay(''); setEditingCard(null); await refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao cadastrar cartão.'); } finally { setBusy(false); } }
-  async function saveAccount(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(''); try { const response = await fetch(editingAccount ? `/api/institutions/${editingAccount.id}` : '/api/institutions', { method: editingAccount ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: accountName, institution: institutionName, accountType, entity: accountEntity, initialBalance }) }); const result = await readJson(response); if (!response.ok) throw new Error(result.error || 'Erro ao cadastrar conta.'); setAccountName(''); setInstitutionName(''); setInitialBalance('0'); setEditingAccount(null); await refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao cadastrar conta.'); } finally { setBusy(false); } }
-  async function saveCategory(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(''); try { const response = await fetch(editingCategory ? `/api/categories/${editingCategory.id}` : '/api/categories', { method: editingCategory ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: categoryName, description: categoryDescription, entity: categoryEntity }) }); const result = await readJson(response); if (!response.ok) throw new Error(result.error || 'Erro ao salvar categoria.'); setCategoryName(''); setCategoryDescription(''); setCategoryEntity('ALL'); setEditingCategory(null); await refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao salvar categoria.'); } finally { setBusy(false); } }
-  async function deleteCategory(item: Category) { if (!window.confirm(`Excluir a categoria “${item.name}”? Lançamentos antigos manterão esse nome.`)) return; const response = await fetch(`/api/categories/${item.id}`, { method: 'DELETE' }); const result = await readJson(response); if (!response.ok) { setError(result.error || 'Erro ao excluir categoria.'); return; } await refresh(); }
-  async function createQuickCategory(event: React.FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); try { const response = await fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: quickCategoryName, description: quickCategoryDescription, entity }) }); const result = await readJson(response); if (!response.ok) throw new Error(result.error || 'Erro ao criar categoria.'); setCategory(result.name); setQuickCategoryName(''); setQuickCategoryDescription(''); setShowQuickCategory(false); await refresh(); } catch (cause) { setError(cause instanceof Error ? cause.message : 'Falha ao criar categoria.'); } finally { setBusy(false); } }
+
+  function startEdit(item: Entry) {
+    setEditing(item);
+    setEditingSeriesGroup(null);
+    setEntryModalOpen(true);
+    setDescription(item.description.replace(/ \(\d+\/\d+\)$/, ''));
+    setAmount(String(item.amount));
+    setType(item.type);
+    setEntity(item.entity);
+    setCategory(item.category);
+    setDate(item.date.slice(0, 10));
+    setDueDate(item.dueDate?.slice(0, 10) || '');
+    setStatus(item.status);
+    setCardId(item.cardId || '');
+    setAccountId(item.accountId || '');
+    setPurpose(item.purpose || 'STANDARD');
+    setAutoDebit(Boolean(item.autoDebit));
+    setIsSubscription(Boolean(item.isSubscription));
+    setNotes(item.notes || '');
+    setInstallments('1');
+    setRecurrence('');
+    setRecurrenceEndDate('');
+    setTab('entries');
+  }
+
+  async function removeEntry(item: Entry, group = false) {
+    const url = group && item.recurrenceGroup
+      ? `/api/transactions/series/${item.recurrenceGroup}`
+      : `/api/transactions/${item.id}`;
+    const response = await fetch(url, { method: 'DELETE' });
+    const result = await readJson(response);
+    if (!response.ok) {
+      setError(result.error || 'Erro ao excluir.');
+      return;
+    }
+    setDeleteTarget(null);
+    await refresh();
+  }
+
+  async function changeEntryStatus(item: Entry) {
+    const nextStatus = item.status === 'PAID' ? 'PENDING' : 'PAID';
+    const response = await fetch(`/api/transactions/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: nextStatus }),
+    });
+    const result = await readJson(response);
+    if (!response.ok) {
+      setError(result.error || 'Erro ao atualizar situa\u00e7\u00e3o.');
+      return;
+    }
+    await refresh();
+  }
+
+  async function saveCard(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(editingCard ? `/api/cards/${editingCard.id}` : '/api/cards', {
+        method: editingCard ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: cardName, paymentType: cardPaymentType, brand: cardBrand, lastFour, creditLimit, closingDay, dueDay: cardDueDay }),
+      });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Erro ao cadastrar cart\u00e3o.');
+      setCardName('');
+      setCardBrand('');
+      setLastFour('');
+      setCreditLimit('');
+      setClosingDay('');
+      setCardDueDay('');
+      setEditingCard(null);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao salvar cart\u00e3o.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveAccount(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(editingAccount ? `/api/institutions/${editingAccount.id}` : '/api/institutions', {
+        method: editingAccount ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: accountName, institution: institutionName, accountType, entity: accountEntity, initialBalance }),
+      });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Erro ao salvar conta.');
+      setAccountName('');
+      setInstitutionName('');
+      setInitialBalance('0');
+      setEditingAccount(null);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao salvar conta.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createQuickCategory() {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: quickCategoryName, description: quickCategoryDescription, entity }),
+      });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Erro ao criar categoria.');
+      setCategory(result.name);
+      setQuickCategoryName('');
+      setQuickCategoryDescription('');
+      setShowQuickCategory(false);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao criar categoria.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveCategory(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const response = await fetch(editingCategory ? `/api/categories/${editingCategory.id}` : '/api/categories', {
+        method: editingCategory ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: categoryName, description: categoryDescription, entity: categoryEntity }),
+      });
+      const result = await readJson(response);
+      if (!response.ok) throw new Error(result.error || 'Erro ao salvar categoria.');
+      setCategoryName('');
+      setCategoryDescription('');
+      setCategoryEntity('ALL');
+      setEditingCategory(null);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Falha ao salvar categoria.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function deleteCategory(item: Category) {
+    if (!window.confirm(`Excluir a categoria "${item.name}"? Os lan\u00e7amentos antigos manter\u00e3o esse nome.`)) return;
+    const response = await fetch(`/api/categories/${item.id}`, { method: 'DELETE' });
+    const result = await readJson(response);
+    if (!response.ok) {
+      setError(result.error || 'Erro ao excluir categoria.');
+      return;
+    }
+    await refresh();
+  }
+
+  async function loadAdminUsers() {
+    const response = await fetch('/api/admin/users');
+    const result = await readJson(response);
+    if (!response.ok) {
+      setError(result.error || 'Voc\u00ea n\u00e3o tem acesso \u00e0s configura\u00e7\u00f5es de usu\u00e1rios.');
+      return;
+    }
+    setAdminUsers(result);
+  }
+
+  async function saveAdminUser(user: AdminUser) {
+    const response = await fetch(`/api/admin/users/${user.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: user.role, permissions: JSON.parse(user.permissions || '[]') }),
+    });
+    const result = await readJson(response);
+    if (!response.ok) {
+      setError(result.error || 'N\u00e3o foi poss\u00edvel salvar as permiss\u00f5es.');
+      return;
+    }
+    await loadAdminUsers();
+  }
+
+  async function loadReportModels(): Promise<ReportModel[]> {
+    const response = await fetch('/api/report-templates');
+    const result = await readJson(response);
+    if (!response.ok) {
+      setError(result.error || 'Não foi possível carregar os modelos.');
+      return [];
+    }
+
+    const models = result as ReportModel[];
+    setReportModels(models);
+    setReportModelName((current) => current || models[0]?.name || '');
+    return models;
+  }
+
+  async function openReportPreview() {
+    const models = reportModels.length ? reportModels : await loadReportModels();
+    const model = models.find((item) => item.name === reportModelName) || models[0];
+    if (model) {
+      setReportPreview(renderReportModel(model, visibleEntries, filterEntity, income, expenses, balance));
+    }
+  }
 
   function editCard(card: Card) {
     setEditingCard(card);
@@ -228,10 +560,10 @@ export default function DashboardPage() {
   }
 
   async function deleteCard(card: Card) {
-    if (!window.confirm(`Excluir o cart?o "${card.name}"? Os lan?amentos antigos ser?o mantidos sem o v?nculo com ele.`)) return;
+    if (!window.confirm(`Excluir o cartão "${card.name}"? Os lançamentos antigos serão mantidos sem o vínculo com ele.`)) return;
     const response = await fetch(`/api/cards/${card.id}`, { method: 'DELETE' });
     const result = await readJson(response);
-    if (!response.ok) { setError(result.error || 'N?o foi poss?vel excluir o cart?o.'); return; }
+    if (!response.ok) { setError(result.error || 'Não foi possível excluir o cartão.'); return; }
     await refresh();
   }
 
@@ -246,63 +578,495 @@ export default function DashboardPage() {
   }
 
   async function deleteAccount(account: Account) {
-    if (!window.confirm(`Excluir a conta "${account.name}"? O hist?rico de lan?amentos ser? preservado.`)) return;
+    if (!window.confirm(`Excluir a conta "${account.name}"? O histórico de lançamentos será preservado.`)) return;
     const response = await fetch(`/api/institutions/${account.id}`, { method: 'DELETE' });
     const result = await readJson(response);
-    if (!response.ok) { setError(result.error || 'N?o foi poss?vel excluir a conta.'); return; }
+    if (!response.ok) { setError(result.error || 'Não foi possível excluir a conta.'); return; }
     await refresh();
   }
 
-  async function loadAdminUsers() {
-    const response = await fetch('/api/admin/users');
-    const result = await readJson(response);
-    if (!response.ok) { setError(result.error || 'Voc? n?o tem acesso ?s configura??es de usu?rios.'); return; }
-    setAdminUsers(result);
+  const hasViewPermission = session?.user.role === 'ADMIN' || session?.user.permissions.includes('view');
+
+  if (session?.user && !hasViewPermission) {
+    return (
+  <main className="app-shell access-blocked">
+    <section className="panel">
+      <h1 className="panel-title">Acesso aguardando liberação</h1>
+      <p className="panel-description">Sua conta foi criada, mas ainda não recebeu permissão para visualizar o financeiro. Peça ao administrador para liberar seu acesso.</p>
+      <button className="button button-secondary" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
+      </section>
+    </main>
+  );
   }
 
-  async function saveAdminUser(user: any) {
-    const response = await fetch(`/api/admin/users/${user.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: user.role, permissions: JSON.parse(user.permissions || '[]') }),
-    });
-    const result = await readJson(response);
-    if (!response.ok) { setError(result.error || 'N?o foi poss?vel salvar as permiss?es.'); return; }
-    await loadAdminUsers();
-  }
+  return (
+  <main className="app-shell">
+    <header className="page-header">
+      <div className="brand-lockup">
+        <span className="brand-mark" aria-hidden="true">MF</span>
+        <div>
+          <p className="eyebrow">Seu dinheiro, com clareza</p>
+          <h1 className="page-title">Painel financeiro</h1>
+          <p className="page-subtitle">Organize contas, cartões e compromissos em um só lugar.</p>
+          </div>
+        </div>
+      <div className="header-actions">
+        <div className="segmented-control" aria-label="Filtrar por perfil">
+          {([['ALL', 'Geral'], ['PHYSICAL', 'Pessoal · PF'], ['LEGAL', 'Empresa · PJ']] as const).map(([value, label]) => (
+          <button key={value} type="button" className="segment-button" aria-pressed={filterEntity === value}
+          onClick={() => { setFilterEntity(value); setCategoryEntity(value); if (value !== 'ALL') setEntity(value); }}>
+          {label}
+          </button>
+        ))}
+        </div>
+      <button className="button button-secondary" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
+      </div>
+    </header>
 
-  async function openReportPreview() {
-    if (!reportModels.length) {
-      const response = await fetch('/api/report-templates');
-      const result = await readJson(response);
-      if (!response.ok) { setError(result.error || 'N?o foi poss?vel carregar os modelos.'); return; }
-      setReportModels(result);
-      setReportModelName(result[0]?.name || '');
-      const firstModel = result[0];
-      if (firstModel) setReportPreview(renderReportModel(firstModel, visibleEntries, filterEntity, income, expenses, balance));
-      return;
-    }
-    const model = reportModels.find((item: any) => item.name === reportModelName);
-    if (model) setReportPreview(renderReportModel(model, visibleEntries, filterEntity, income, expenses, balance));
-  }
+  {/* Menus agrupados por área para facilitar a navegação. */}
+  <nav className="section-nav" aria-label="Seções do financeiro">
+    {([['overview', 'Visão geral'], ['entries', 'Lançamentos'], ['cards', 'Cartões'], ['institutions', 'Bancos e contas'], ['categories', 'Categorias'], ['reports', 'Relatórios']] as const).map(([value, label]) => (
+    <button key={value} className={`section-link ${tab === value ? 'section-link-active' : ''}`} type="button"
+    aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>
+  ))}
+  <Link className="section-link" href="/dashboard/shopping">Planeje antes de comprar</Link>
+  {session?.user.role === 'ADMIN' && (
+  <button className={`section-link ${tab === 'settings' ? 'section-link-active' : ''}`} type="button"
+  onClick={() => { setTab('settings'); void loadAdminUsers(); }}>Configurações</button>
+  )}
+  </nav>
 
-  return <main className="app-shell">
-    <header className="page-header"><div className="brand-lockup"><span className="brand-mark" aria-hidden="true">◒</span><div><p className="eyebrow">Seu dinheiro, com clareza</p><h1 className="page-title">Painel financeiro</h1><p className="page-subtitle">Organize contas, cartões e compromissos em um só lugar.</p></div></div><div className="header-actions"><div className="segmented-control" aria-label="Filtrar por perfil">{([['ALL', 'Geral'], ['PHYSICAL', 'Pessoal · PF'], ['LEGAL', 'Empresa · PJ']] as const).map(([value, label]) => <button key={value} type="button" className="segment-button" aria-pressed={filterEntity === value} onClick={() => { setFilterEntity(value); if (value !== 'ALL') setEntity(value); }}>{label}</button>)}</div><button className="button button-secondary" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button></div></header>
-    <nav className="section-nav" aria-label="Seções do financeiro">{([['overview', 'Visão geral'], ['entries', 'Lançamentos'], ['cards', 'Cartões'], ['institutions', 'Bancos e contas'], ['categories', 'Categorias'], ['reports', 'Relatórios']] as const).map(([value, label]) => <button key={value} className={`section-link ${tab === value ? 'section-link-active' : ''}`} type="button" aria-current={tab === value ? 'page' : undefined} onClick={() => { setTab(value); if (value === 'settings') void loadAdminUsers(); if (value === 'reports' && !reportModels.length) void openReportPreview(); }}>{label}</button>)}</nav>
-    {tab === 'overview' && <FinancialCharts entries={visibleEntries} />}
-    {tab === 'categories' && <section className="panel category-scope-panel"><Field label="Perfil das categorias"><select className="select" value={categoryEntity} onChange={e => setCategoryEntity(e.target.value as 'ALL' | EntityType)}><option value="ALL">Todos os perfis</option><option value="PHYSICAL">Somente PF</option><option value="LEGAL">Somente PJ</option></select></Field><p className="panel-description">Categorias PF e PJ aparecem somente no perfil correspondente.</p></section>}
-    {tab === 'entries' && <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Origem e finalidade</h2><p className="panel-description">Para pagamentos de fatura, selecione o cartão devido e a conta usada para pagar. O app registra o pagamento, não movimenta dinheiro no banco.</p></div></div><div className="form-grid form-grid-expanded"><Field label="Finalidade"><select className="select" value={purpose} onChange={e => { setPurpose(e.target.value); if (e.target.value === 'SUBSCRIPTION') setIsSubscription(true); }}><option value="STANDARD">Movimentação comum</option><option value="CARD_PAYMENT">Pagamento de fatura do cartão</option><option value="LOAN">Empréstimo</option><option value="DONATION">Doação</option><option value="SUBSCRIPTION">Assinatura</option></select></Field><Field label="Conta bancária / instituição"><select className="select" value={accountId} onChange={e => setAccountId(e.target.value)}><option value="">Sem conta vinculada</option>{accounts.filter(item => item.entity === entity).map(account => <option key={account.id} value={account.id}>{account.institution} · {account.name}</option>)}</select></Field><Field label="Nota / detalhes"><input className="input" maxLength={300} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Detalhes do empréstimo, doação ou serviço" /></Field><label className="check-field"><input type="checkbox" checked={autoDebit} onChange={e => setAutoDebit(e.target.checked)} /> Débito automático configurado</label><label className="check-field"><input type="checkbox" checked={isSubscription || purpose === 'SUBSCRIPTION'} onChange={e => setIsSubscription(e.target.checked)} /> É uma assinatura</label></div>{(autoDebit || isSubscription || purpose === 'SUBSCRIPTION') && <p className="panel-description">O painel acompanha as datas e o método. Débitos reais ainda precisam ser autorizados no banco ou na operadora do cartão.</p>}</section>}
-    {tab === 'cards' && <section className="panel"><h2 className="panel-title">Uso e limite disponível</h2><p className="panel-description">Compras no crédito aumentam a dívida; pagamentos de fatura confirmados reduzem a dívida e recompõem o limite.</p><div className="card-grid">{cards.map(card => { const charges = card.paymentType === 'CREDIT' ? entries.filter(item => item.cardId === card.id && item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT').reduce((sum, item) => sum + item.amount, 0) : 0; const payments = entries.filter(item => item.cardId === card.id && item.purpose === 'CARD_PAYMENT' && item.status === 'PAID').reduce((sum, item) => sum + item.amount, 0); const debt = Math.max(0, charges - payments); return <article className="payment-card" key={card.id}><span className="eyebrow">{card.paymentType === 'CREDIT' ? 'Crédito' : 'Débito'} · {card.brand || 'Cartão'}</span><h3>{card.name}</h3><p>Fatura estimada: {money.format(debt)}</p><strong>Disponível: {card.creditLimit == null ? 'Não informado' : money.format(Math.max(0, card.creditLimit - debt))}</strong><small>Limite total: {card.creditLimit == null ? '—' : money.format(card.creditLimit)}</small></article>; })}</div>{cards.length === 0 && <p className="panel-description">Cadastre um cartão para acompanhar o limite.</p>}</section>}
-    {tab === 'cards' && <section className="panel"><h2 className="panel-title">Tipo do novo cartão</h2><div className="segmented-control"><button type="button" className="segment-button" aria-pressed={cardPaymentType === 'CREDIT'} onClick={() => setCardPaymentType('CREDIT')}>Crédito</button><button type="button" className="segment-button" aria-pressed={cardPaymentType === 'DEBIT'} onClick={() => setCardPaymentType('DEBIT')}>Débito</button></div></section>}
-    {tab === 'institutions' && <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Banco ou instituição</h2><p className="panel-description">Cadastre contas, carteiras ou dinheiro em espécie por perfil.</p></div></div><form className="form-grid form-grid-expanded" onSubmit={saveAccount}><Field label="Apelido da conta"><input className="input" value={accountName} onChange={e => setAccountName(e.target.value)} maxLength={60} required placeholder="Conta principal" /></Field><Field label="Banco / instituição"><input className="input" value={institutionName} onChange={e => setInstitutionName(e.target.value)} maxLength={80} required placeholder="Banco do Brasil, carteira..." /></Field><Field label="Tipo de conta"><select className="select" value={accountType} onChange={e => setAccountType(e.target.value)}><option value="CHECKING">Corrente</option><option value="SAVINGS">Poupança</option><option value="CASH">Dinheiro</option><option value="WALLET">Carteira digital</option><option value="OTHER">Outro</option></select></Field><Field label="Perfil"><select className="select" value={accountEntity} onChange={e => setAccountEntity(e.target.value as EntityType)}><option value="PHYSICAL">PF</option><option value="LEGAL">PJ</option></select></Field><Field label="Saldo inicial (R$)"><input className="input" type="number" step="0.01" value={initialBalance} onChange={e => setInitialBalance(e.target.value)} /></Field><button className="button button-primary" disabled={busy}>＋ Cadastrar conta</button></form><div className="account-list">{accountBalances.map(account => <div className="category-row" key={account.id}><span>{account.institution} · {account.name}<small className="muted-block">{account.accountType} · {account.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</small></span><strong>{money.format(account.balance)}</strong></div>)}</div></section>}
-    {error && <p className="form-error" role="alert">{error}</p>}
-    {(tab === 'entries' || tab === 'reports' || tab === 'overview') && <FilterPanel month={monthFilter} setMonth={setMonthFilter} from={fromDate} setFrom={setFromDate} to={toDate} setTo={setToDate} status={statusFilter} setStatus={setStatusFilter} category={categoryFilter} setCategory={setCategoryFilter} categories={categoryOptions} description={descriptionFilter} setDescription={setDescriptionFilter} onClear={() => { setMonthFilter(''); setFromDate(''); setToDate(''); setStatusFilter(''); setCategoryFilter(''); setDescriptionFilter(''); }} />}
-    {tab === 'overview' && <><section className="summary-grid summary-grid-wide" aria-label="Resumo financeiro"><Summary title="Entradas pagas" value={income} /><Summary title="Despesas pagas" value={expenses} /><Summary title="Saldo realizado" value={balance} /><Summary title="Contas a pagar" value={due} /><Summary title="A receber" value={incoming} /></section><div className="overview-columns"><section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Despesas por categoria</h2><p className="panel-description">Distribuição dos lançamentos pagos.</p></div></div>{expenseCategories.length ? expenseCategories.slice(0, 7).map(([label, value]) => <div className="category-row" key={label}><span>{label}</span><strong>{money.format(value)}</strong></div>) : <p className="panel-description">Nenhum lançamento neste filtro.</p>}</section><section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Próximos compromissos</h2><p className="panel-description">Contas pendentes do período selecionado.</p></div><button type="button" className="button button-secondary" onClick={() => setTab('entries')}>Ver todos</button></div>{visibleEntries.filter(item => item.status === 'PENDING').slice(0, 5).map(item => <div className="category-row" key={item.id}><span>{item.description}<small className="muted-block">Vencimento: {formatDate(item.dueDate)}</small></span><strong className={item.type === 'EXPENSE' ? 'type-expense' : 'type-income'}>{money.format(item.amount)}</strong></div>)}{!visibleEntries.some(item => item.status === 'PENDING') && <p className="panel-description">Nenhuma conta pendente.</p>}</section></div><PurchaseSimulator currentMonthlyBalance={balance} /></>}
-    {tab === 'entries' && <><section className="panel" aria-labelledby="entry-form-title"><div className="panel-heading"><div><h2 className="panel-title" id="entry-form-title">{editingSeriesGroup ? 'Editar série de repetição' : editing ? 'Editar lançamento' : 'Novo lançamento'}</h2><p className="panel-description">{editingSeriesGroup ? 'Descrição, valor, categoria, situação e perfil serão aplicados a todas as ocorrências. Cada data será preservada.' : 'Registre entradas, despesas, vencimentos e pagamentos futuros.'}</p></div>{(editing || editingSeriesGroup) && <button className="button button-secondary" type="button" onClick={resetForm}>Cancelar edição</button>}</div><form className="form-grid form-grid-expanded" onSubmit={saveEntry}><Field label="Descrição"><input className="input" maxLength={120} value={description} onChange={e => setDescription(e.target.value)} required /></Field><Field label="Valor (R$)"><input className="input" type="number" min="0.01" step="0.01" value={amount} onChange={e => setAmount(e.target.value)} required /></Field><Field label="Tipo"><select className="select" value={type} onChange={e => setType(e.target.value as TransactionType)}><option value="EXPENSE">Despesa</option><option value="INCOME">Entrada</option></select></Field><Field label="Setor / perfil"><select className="select" value={entity} onChange={e => setEntity(e.target.value as EntityType)}><option value="PHYSICAL">Pessoal · PF</option><option value="LEGAL">Empresa · PJ</option></select></Field><Field label="Categoria"><div className="inline-field"><select className="select" value={category} onChange={e => { setCategory(e.target.value); setShowQuickCategory(e.target.value === '__new__'); }}><option value="Geral">Geral</option>{categories.map(item => <option key={item.id} value={item.name}>{item.name}</option>)}<option value="__new__">＋ Criar categoria</option></select></div></Field>{!editingSeriesGroup && <><Field label="Data do lançamento"><input className="input" type="date" value={date} onChange={e => setDate(e.target.value)} required /></Field><Field label="Vencimento"><input className="input" type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></Field></>}<Field label="Situação"><select className="select" value={status} onChange={e => setStatus(e.target.value as 'PAID' | 'PENDING')}><option value="PAID">Pago / recebido</option><option value="PENDING">Pendente</option></select></Field><Field label="Cartão"><select className="select" value={cardId} onChange={e => setCardId(e.target.value)}><option value="">Sem cartão</option>{cards.map(card => <option key={card.id} value={card.id}>{card.name}{card.lastFour ? ` ···· ${card.lastFour}` : ''}</option>)}</select></Field>{!editing && !editingSeriesGroup && <><Field label="Parcelas"><select className="select" value={installments} onChange={e => { setInstallments(e.target.value); if (e.target.value !== '1') setRecurrence(''); }}>{Array.from({ length: 60 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}x</option>)}</select></Field><Field label="Repetição"><select className="select" value={recurrence} onChange={e => { setRecurrence(e.target.value); if (e.target.value) setInstallments('1'); if (!e.target.value) setRecurrenceEndDate(''); }}><option value="">Não se repete</option><option value="WEEKLY">Semanal</option><option value="MONTHLY">Mensal</option><option value="YEARLY">Anual</option></select></Field>{recurrence && <Field label="Repetir até"><input className="input" type="date" min={date} value={recurrenceEndDate} onChange={e => setRecurrenceEndDate(e.target.value)} required /></Field>}</>}<button className="button button-primary" type="submit" disabled={busy}>{busy ? 'Salvando…' : editing || editingSeriesGroup ? 'Salvar alterações' : '＋ Adicionar'}</button></form>{showQuickCategory && <form className="quick-category-form" onSubmit={createQuickCategory}><strong>Nova categoria</strong><div className="form-grid"><Field label="Nome"><input className="input" value={quickCategoryName} onChange={e => setQuickCategoryName(e.target.value)} maxLength={60} required /></Field><Field label="Descrição"><input className="input" value={quickCategoryDescription} onChange={e => setQuickCategoryDescription(e.target.value)} maxLength={180} /></Field><button className="button button-primary" disabled={busy}>Criar categoria</button><button type="button" className="button button-secondary" onClick={() => { setShowQuickCategory(false); setCategory('Geral'); }}>Cancelar</button></div></form>}</section><section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Todos os lançamentos</h2><p className="panel-description">Use os filtros acima e selecione qualquer cabeçalho para ordenar.</p></div><button className="button button-secondary" onClick={() => void refresh()} disabled={loading}>Atualizar</button></div>{loading ? <p className="panel-description">Carregando…</p> : <EntryTable entries={visibleEntries} onEdit={startEdit} onDelete={item => void removeEntry(item)} onStatusChange={item => void changeEntryStatus(item)} onEditSeries={startEditSeries} onDeleteSeries={item => void removeSeries(item)} sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />}</section></>}
-    {tab === 'cards' && <><section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Cadastrar cartão</h2><p className="panel-description">Informe apenas os últimos quatro dígitos. Não armazene dados de segurança.</p></div></div><form className="form-grid form-grid-expanded" onSubmit={saveCard}><Field label="Apelido"><input className="input" value={cardName} onChange={e => setCardName(e.target.value)} maxLength={60} required /></Field><Field label="Tipo"><select className="select" value={cardPaymentType} onChange={e => setCardPaymentType(e.target.value as 'CREDIT' | 'DEBIT')}><option value="CREDIT">Cr?dito</option><option value="DEBIT">D?bito</option></select></Field><Field label="Bandeira"><input className="input" value={cardBrand} onChange={e => setCardBrand(e.target.value)} maxLength={30} /></Field><Field label="Últimos 4 dígitos"><input className="input" value={lastFour} onChange={e => setLastFour(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" maxLength={4} /></Field><Field label="Limite (R$)"><input className="input" type="number" min="0" step="0.01" value={creditLimit} onChange={e => setCreditLimit(e.target.value)} /></Field><Field label="Dia de fechamento"><input className="input" type="number" min="1" max="31" value={closingDay} onChange={e => setClosingDay(e.target.value)} /></Field><Field label="Dia de vencimento"><input className="input" type="number" min="1" max="31" value={cardDueDay} onChange={e => setCardDueDay(e.target.value)} /></Field><button className="button button-primary" disabled={busy}>＋ Cadastrar cartão</button></form></section><section className="panel"><h2 className="panel-title">Meus cartões</h2>{cards.length ? <div className="card-grid">{cards.map(card => <article className="payment-card" key={card.id}><span className="eyebrow">{card.brand || 'Cartão'}</span><h3>{card.name}</h3><p>{card.lastFour ? `Final ${card.lastFour}` : 'Final não informado'}</p><strong>{card.creditLimit ? money.format(card.creditLimit) : 'Limite não informado'}</strong><small>Fecha dia {card.closingDay || '—'} · vence dia {card.dueDay || '—'}</small></article>)}</div> : <p className="panel-description">Nenhum cartão cadastrado.</p>}</section></>}
-    {tab === 'categories' && <><section className="panel"><div className="panel-heading"><div><h2 className="panel-title">{editingCategory ? 'Editar categoria' : 'Criar categoria'}</h2><p className="panel-description">Categorias são privadas da sua conta. Renomear também atualiza os lançamentos associados.</p></div>{editingCategory && <button className="button button-secondary" type="button" onClick={() => { setEditingCategory(null); setCategoryName(''); setCategoryDescription(''); }}>Cancelar</button>}</div><form className="form-grid form-grid-expanded" onSubmit={saveCategory}><Field label="Nome"><input className="input" value={categoryName} onChange={e => setCategoryName(e.target.value)} maxLength={60} required /></Field><Field label="Descrição"><input className="input" value={categoryDescription} onChange={e => setCategoryDescription(e.target.value)} maxLength={180} /></Field><button className="button button-primary" disabled={busy}>{editingCategory ? 'Salvar categoria' : '＋ Criar categoria'}</button></form></section><section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Minhas categorias</h2><p className="panel-description">Excluir uma categoria não apaga nem altera lançamentos antigos.</p></div><label className="category-search"><span className="visually-hidden">Buscar categoria</span><input className="input" placeholder="Buscar categoria" value={categorySearch} onChange={e => setCategorySearch(e.target.value)} /></label></div><div className="table-wrap"><table className="data-table"><thead><tr><th>Categoria</th><th>Descrição</th><th>Ações</th></tr></thead><tbody>{visibleCategories.length ? visibleCategories.map(item => <tr key={item.id}><td>{item.name}</td><td>{item.description || '—'}</td><td><div className="row-actions"><button className="button button-secondary button-compact" onClick={() => { setEditingCategory(item); setCategoryName(item.name); setCategoryDescription(item.description); setCategoryEntity(item.entity); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Editar</button><button className="button button-danger button-compact" onClick={() => void deleteCategory(item)}>Excluir</button></div></td></tr>) : <tr><td className="empty-state" colSpan={3}>Nenhuma categoria encontrada.</td></tr>}</tbody></table></div></section></>}
-    {tab === 'reports' && <section className="panel report-panel"><div className="panel-heading"><div><h2 className="panel-title">Relatório financeiro</h2><p className="panel-description">Filtros acima também são aplicados ao relatório.</p></div><button className="button button-primary no-print" type="button" onClick={() => window.print()}>Imprimir / salvar PDF</button></div><div className="report-heading"><h1>Relatório financeiro · {filterEntity === 'ALL' ? 'Geral' : filterEntity === 'PHYSICAL' ? 'Pessoal (PF)' : 'Empresa (PJ)'}</h1><p>Gerado em {new Intl.DateTimeFormat('pt-BR', { dateStyle: 'long' }).format(new Date())}</p></div><div className="summary-grid"><Summary title="Entradas pagas" value={income} /><Summary title="Despesas pagas" value={expenses} /><Summary title="Saldo realizado" value={balance} /></div><h3>Movimentações detalhadas</h3><EntryTable entries={visibleEntries} readOnly sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} /></section>}
-  </main>;
+  {error && <p className="form-error" role="alert">{error}</p>}
+  {(tab === 'overview' || tab === 'entries' || tab === 'reports') && (
+  <FilterPanel month={monthFilter} setMonth={setMonthFilter} from={fromDate} setFrom={setFromDate}
+  to={toDate} setTo={setToDate} status={statusFilter} setStatus={setStatusFilter}
+  category={categoryFilter} setCategory={setCategoryFilter} categories={categoryOptions}
+  description={descriptionFilter} setDescription={setDescriptionFilter}
+  onClear={() => { setMonthFilter(''); setFromDate(''); setToDate(''); setStatusFilter(''); setCategoryFilter(''); setDescriptionFilter(''); }} />
+  )}
+
+  {tab === 'overview' && <>
+  <section className="summary-grid summary-grid-wide" aria-label="Resumo financeiro">
+    <Summary title="Entradas pagas" value={income} />
+    <Summary title="Despesas pagas" value={expenses} />
+    <Summary title="Saldo realizado" value={balance} />
+    <Summary title="Contas a pagar" value={due} />
+    <Summary title="A receber" value={incoming} />
+    </section>
+  {/* A lista simulada fica acima do gráfico e não altera o extrato até a confirmação. */}
+  <FinancialCharts entries={visibleEntries} />
+  <div className="overview-columns">
+    <section className="panel">
+      <h2 className="panel-title">Despesas por categoria</h2>
+      {expenseCategories.length ? expenseCategories.slice(0, 7).map(([label, value]) => <div className="category-row" key={label}>
+        <span>{label}</span>
+        <strong>{money.format(value)}</strong>
+        </div>) : <p className="panel-description">Nenhum lançamento neste filtro.</p>}
+      </section>
+    <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <h2 className="panel-title">Próximos compromissos</h2>
+          <p className="panel-description">Contas pendentes no período selecionado.</p>
+          </div>
+        <button className="button button-secondary" type="button" onClick={() => setTab('entries')}>Ver todos</button>
+        </div>
+      {visibleEntries.filter((item) => item.status === 'PENDING').slice(0, 5).map((item) => <div className="category-row" key={item.id}>
+        <span>{item.description}<small className="muted-block">Vencimento: {formatDate(item.dueDate)}</small>
+          </span>
+        <strong>{money.format(item.amount)}</strong>
+        </div>)}
+      </section>
+    </div>
+  </>}
+
+  {tab === 'entries' && <>
+  <section className="panel category-shortcuts">
+    <div className="panel-heading">
+      <div>
+        <h2 className="panel-title">Categorias do perfil selecionado</h2>
+        <p className="panel-description">No modo Geral são exibidas todas; em PF ou PJ, somente as categorias daquele perfil.</p>
+        </div>
+      <button className="button button-secondary" type="button" onClick={() => setTab('categories')}>Gerenciar categorias</button>
+      </div>
+    <div className="category-chip-list">{categories.filter((item) => item.entity === 'ALL' || item.entity === entity).map((item) => <button className="category-chip" type="button" key={item.id} onClick={() => setCategoryFilter(item.name)}>{item.name}</button>)}</div>
+    </section>
+  <section className="panel">
+    <div className="panel-heading">
+      <div>
+        <h2 className="panel-title">Todos os lançamentos</h2>
+        <p className="panel-description">Ordene pelas colunas. Clique na situação para marcar pago ou pendente.</p>
+        </div>
+      <div className="panel-actions">
+        <button className="button button-secondary" type="button" onClick={() => void refresh()}>Atualizar</button>
+        <button className="button button-primary" type="button" onClick={() => { resetForm(); setEntryModalOpen(true); }}>+ Novo lançamento</button>
+        </div>
+      </div>
+    <EntryTable entries={visibleEntries} onEdit={canEdit ? startEdit : undefined} onDelete={canDelete ? setDeleteTarget : undefined} onStatusChange={canEdit ? (item) => void changeEntryStatus(item) : undefined} sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
+      </section>
+    </>}
+
+    {tab === 'cards' && <>
+    <section className="panel">
+      <h2 className="panel-title">Cartões cadastrados</h2>
+      <div className="card-grid">
+        {cards.map((card) => {
+        const purchases = card.paymentType === 'CREDIT' ? entries.filter((item) => item.cardId === card.id && item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT').reduce((sum, item) => sum + item.amount, 0) : 0;
+        const payments = entries.filter((item) => item.cardId === card.id && item.purpose === 'CARD_PAYMENT' && item.status === 'PAID').reduce((sum, item) => sum + item.amount, 0);
+        const debt = Math.max(0, purchases - payments);
+        return <article className="payment-card" key={card.id}>
+          <span className="eyebrow">{card.paymentType === 'CREDIT' ? 'Crédito' : 'Débito'} · {card.brand || 'Cartão'}</span>
+          <h3>{card.name}</h3>
+          <p>{card.paymentType === 'CREDIT' ? `Fatura estimada: ${money.format(debt)}` : 'Cartão de débito'}</p>
+          <strong>{card.paymentType === 'CREDIT' && card.creditLimit != null ? `Disponível: ${money.format(Math.max(0, card.creditLimit - debt))}` : '\u2212'}</strong>
+          <small>{card.lastFour ? `Final ${card.lastFour}` : 'Final não informado'}</small>
+          <div className="row-actions">
+            {canEdit && <button className="button button-secondary button-compact" type="button" onClick={() => editCard(card)}>Editar</button>}
+            {canDelete && <button className="button button-danger button-compact" type="button" onClick={() => void deleteCard(card)}>Excluir</button>}
+            </div>
+          </article>;
+        })}
+        </div>{!cards.length && <p className="panel-description">Nenhum cartão cadastrado.</p>}</section>
+    {(canCreate || canEdit) && <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <h2 className="panel-title">{editingCard ? 'Editar cartão' : 'Cadastrar cartão'}</h2>
+          <p className="panel-description">Use apenas os últimos quatro dígitos.</p>
+          </div>{editingCard && <button className="button button-secondary" type="button" onClick={() => setEditingCard(null)}>Cancelar</button>}</div>
+      <form className="form-grid form-grid-expanded" onSubmit={saveCard}>
+        <Field label="Apelido">
+          <input className="input" value={cardName} onChange={(event) => setCardName(event.target.value)} required />
+            </Field>
+          <Field label="Tipo">
+            <select className="select" value={cardPaymentType} onChange={(event) => setCardPaymentType(event.target.value as 'CREDIT' | 'DEBIT')}>
+              <option value="CREDIT">Crédito</option>
+              <option value="DEBIT">Débito</option>
+              </select>
+            </Field>
+          <Field label="Bandeira">
+            <input className="input" value={cardBrand} onChange={(event) => setCardBrand(event.target.value)} />
+              </Field>
+            <Field label="Últimos 4 dígitos">
+              <input className="input" value={lastFour} onChange={(event) => setLastFour(event.target.value.replace(/\D/g, '').slice(0, 4))} maxLength={4} />
+                </Field>
+              {cardPaymentType === 'CREDIT' && <>
+              <Field label="Limite (R$)">
+                <input className="input" type="number" min="0" step="0.01" value={creditLimit} onChange={(event) => setCreditLimit(event.target.value)} />
+                  </Field>
+                <Field label="Dia de fechamento">
+                  <input className="input" type="number" min="1" max="31" value={closingDay} onChange={(event) => setClosingDay(event.target.value)} />
+                    </Field>
+                  <Field label="Dia de vencimento">
+                    <input className="input" type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} />
+                      </Field>
+                    </>}
+                    <button className="button button-primary" disabled={busy}>{editingCard ? 'Salvar cartão' : '+ Cadastrar cartão'}</button>
+                    </form>
+                  </section>}
+                </>}
+
+                {tab === 'institutions' && <>
+                <section className="panel">
+                  <h2 className="panel-title">Bancos e contas</h2>
+                  <div className="table-wrap">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Instituição</th>
+                          <th>Conta</th>
+                          <th>Tipo</th>
+                          <th>Perfil</th>
+                          <th className="table-number">Saldo</th>
+                          <th>Ações</th>
+                          </tr>
+                        </thead>
+                      <tbody>
+                        {accountBalances.map((account) => <tr key={account.id}>
+                          <td>{account.institution}</td>
+                          <td>{account.name}</td>
+                          <td>{account.accountType}</td>
+                          <td>{account.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</td>
+                          <td className="table-number">{money.format(account.balance)}</td>
+                          <td>
+                            <div className="row-actions">
+                              {canEdit && <button className="button button-secondary button-compact" type="button" onClick={() => editAccount(account)}>Editar</button>}
+                              {canDelete && <button className="button button-danger button-compact" type="button" onClick={() => void deleteAccount(account)}>Excluir</button>}
+                              </div>
+                            </td>
+                          </tr>)}
+                        {!accountBalances.length && <tr>
+                          <td className="empty-state" colSpan={6}>Nenhuma conta cadastrada.</td>
+                          </tr>}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                {(canCreate || canEdit) && <section className="panel">
+                  <h2 className="panel-title">{editingAccount ? 'Editar conta' : 'Adicionar banco ou instituição'}</h2>{editingAccount && <button className="button button-secondary" type="button" onClick={() => setEditingAccount(null)}>Cancelar edição</button>}
+                  <form className="form-grid form-grid-expanded" onSubmit={saveAccount}>
+                    <Field label="Apelido da conta">
+                      <input className="input" value={accountName} onChange={(event) => setAccountName(event.target.value)} required />
+                        </Field>
+                      <Field label="Banco / instituição">
+                        <input className="input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} required />
+                          </Field>
+                        <Field label="Tipo">
+                          <select className="select" value={accountType} onChange={(event) => setAccountType(event.target.value)}>
+                            <option value="CHECKING">Corrente</option>
+                            <option value="SAVINGS">Poupança</option>
+                            <option value="CASH">Dinheiro</option>
+                            <option value="WALLET">Carteira digital</option>
+                            <option value="OTHER">Outro</option>
+                            </select>
+                          </Field>
+                        <Field label="Perfil">
+                          <select className="select" value={accountEntity} onChange={(event) => setAccountEntity(event.target.value as EntityType)}>
+                            <option value="PHYSICAL">PF</option>
+                            <option value="LEGAL">PJ</option>
+                            </select>
+                          </Field>
+                        <Field label="Saldo inicial">
+                          <input className="input" type="number" step="0.01" value={initialBalance} onChange={(event) => setInitialBalance(event.target.value)} />
+                            </Field>
+                          <button className="button button-primary" disabled={busy}>{editingAccount ? 'Salvar conta' : '+ Adicionar conta'}</button>
+                          </form>
+                        </section>}
+                      </>}
+
+                      {tab === 'categories' && <>
+                      <section className="panel category-scope-panel">
+                        <Field label="Categorias visíveis">
+                          <select className="select" value={categoryEntity} onChange={(event) => setCategoryEntity(event.target.value as 'ALL' | EntityType)}>
+                            <option value="ALL">Todos os perfis</option>
+                            <option value="PHYSICAL">Somente PF</option>
+                            <option value="LEGAL">Somente PJ</option>
+                            </select>
+                          </Field>
+                        <p className="panel-description">No filtro Geral, o painel reúne categorias de todos os perfis.</p>
+                        </section>
+                      {(canCreate || canEdit) && <section className="panel">
+                        <div className="panel-heading">
+                          <div>
+                            <h2 className="panel-title">{editingCategory ? 'Editar categoria' : 'Criar categoria'}</h2>
+                            <p className="panel-description">Renomear também atualiza os lançamentos.</p>
+                            </div>{editingCategory && <button className="button button-secondary" type="button" onClick={() => { setEditingCategory(null); setCategoryName(''); setCategoryDescription(''); }}>Cancelar</button>}</div>
+                        <form className="form-grid form-grid-expanded" onSubmit={saveCategory}>
+                          <Field label="Nome">
+                            <input className="input" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} required />
+                              </Field>
+                            <Field label="Perfil">
+                              <select className="select" value={categoryEntity} onChange={(event) => setCategoryEntity(event.target.value as 'ALL' | EntityType)}>
+                                <option value="ALL">Todos</option>
+                                <option value="PHYSICAL">PF</option>
+                                <option value="LEGAL">PJ</option>
+                                </select>
+                              </Field>
+                            <Field label="Descrição">
+                              <input className="input" value={categoryDescription} onChange={(event) => setCategoryDescription(event.target.value)} />
+                                </Field>
+                              <button className="button button-primary" disabled={busy}>{editingCategory ? 'Salvar categoria' : '+ Criar categoria'}</button>
+                              </form>
+                            </section>}
+                          <section className="panel">
+                            <div className="panel-heading">
+                              <h2 className="panel-title">Categorias cadastradas</h2>
+                              <input className="input category-search" placeholder="Buscar categoria" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} />
+                                </div>
+                              <div className="table-wrap">
+                                <table className="data-table">
+                                  <thead>
+                                    <tr>
+                                      <th>Categoria</th>
+                                      <th>Descrição</th>
+                                      <th>Perfil</th>
+                                      <th>Ações</th>
+                                      </tr>
+                                    </thead>
+                                  <tbody>
+                                    {visibleCategories.map((item) => <tr key={item.id}>
+                                      <td>{item.name}</td>
+                                      <td>{item.description || '\u2212'}</td>
+                                      <td>{item.entity === 'ALL' ? 'Todos' : item.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</td>
+                                      <td>
+                                        <div className="row-actions">
+                                          <button className="button button-secondary button-compact" type="button" onClick={() => { setEditingCategory(item); setCategoryName(item.name); setCategoryDescription(item.description); setCategoryEntity(item.entity); }}>Editar</button>
+                                          <button className="button button-danger button-compact" type="button" onClick={() => void deleteCategory(item)}>Excluir</button>
+                                          </div>
+                                        </td>
+                                      </tr>)}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </section>
+                            </>}
+
+                            {tab === 'reports' && <section className="panel report-panel">
+                              <div className="panel-heading">
+                                <div>
+                                  <h2 className="panel-title">Relatório financeiro</h2>
+                                  <p className="panel-description">Modelos editáveis em reports/models; os filtros ativos são aplicados ao visualizar.</p>
+                                  </div>
+                                </div>
+                              <div className="report-actions no-print">
+                                <Field label="Modelo HTML">
+                                  <select className="select" value={reportModelName} onChange={(event) => setReportModelName(event.target.value)}>
+                                    <option value="">Selecione</option>{reportModels.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</select>
+                                  </Field>
+                                <button className="button button-secondary" type="button" onClick={() => void loadReportModels()}>Atualizar modelos</button>
+                                <button className="button button-primary" type="button" onClick={() => void openReportPreview()}>Visualizar modelo</button>
+                                </div>
+                              {reportPreview && <>
+                              <div className="panel-actions no-print">
+                                <button className="button button-primary" type="button" onClick={() => (document.getElementById('report-preview-frame') as HTMLIFrameElement | null)?.contentWindow?.print()}>Imprimir / salvar PDF</button>
+                                <button className="button button-secondary" type="button" onClick={() => setReportPreview('')}>Fechar prévia</button>
+                                </div>
+                              <iframe id="report-preview-frame" className="report-preview-frame" title="Pré-visualização do relatório" sandbox="" srcDoc={reportPreview} />
+                              </>}
+                              <div className="report-heading">
+                                <h2>Relatório ? {filterEntity === 'ALL' ? 'Geral' : filterEntity === 'PHYSICAL' ? 'Pessoal (PF)' : 'Empresa (PJ)'}</h2>
+                                </div>
+                              <EntryTable entries={visibleEntries} readOnly sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
+                              </section>}
+
+                            {tab === 'settings' && session?.user.role === 'ADMIN' && <section className="panel">
+                              <h2 className="panel-title">Usuários e permissões</h2>
+                              <p className="panel-description">Novas contas começam bloqueadas. Libere somente as ações necessárias.</p>{adminUsers.map((user) => <div className="user-permission-row" key={user.id}>
+                                <div>
+                                  <strong>{user.name}</strong>
+                                  <small className="muted-block">{user.email}</small>
+                                  </div>
+                                <Field label="Acesso">
+                                  <select className="select" value={user.role} onChange={(event) => setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, role: event.target.value as AdminUser['role'] } : item))}>
+                                    <option value="BLOCKED">Bloqueado</option>
+                                    <option value="USER">Personalizado</option>
+                                    <option value="ADMIN">Administrador</option>
+                                    </select>
+                                  </Field>{(['view', 'create', 'edit', 'delete'] as const).map((permission) => <label className="check-field" key={permission}>
+                                  <input type="checkbox" checked={JSON.parse(user.permissions || '[]').includes(permission)} disabled={user.role !== 'USER'} onChange={(event) => { const old = JSON.parse(user.permissions || '[]') as string[]; const next = event.target.checked ? [...old, permission] : old.filter((item) => item !== permission); setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, permissions: JSON.stringify(next) } : item)); }} />{permission === 'view' ? 'Visualizar' : permission === 'create' ? 'Criar' : permission === 'edit' ? 'Editar' : 'Excluir'}</label>)}<button className="button button-secondary" type="button" onClick={() => void saveAdminUser(user)}>Salvar acesso</button>
+                                  </div>)}<p className="panel-description">Admin pelo terminal: <code>npm run admin:grant -- email@exemplo.com</code>
+                                  </p>
+                                </section>}
+
+                              {entryModalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setEntryModalOpen(false); resetForm(); } }}>
+                                <section className="modal-card entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
+                                  <div className="panel-heading">
+                                    <div>
+                                      <h2 className="panel-title" id="entry-modal-title">{editing ? 'Editar lançamento' : 'Novo lançamento'}</h2>
+                                      <p className="panel-description">Lançamento, origem e finalidade no mesmo formulário.</p>
+                                      </div>
+                                    <button className="button button-secondary" type="button" onClick={() => { setEntryModalOpen(false); resetForm(); }}>Fechar</button>
+                                    </div>
+                                  <form className="form-grid form-grid-expanded" onSubmit={saveEntry}>
+                                    <Field label="Descrição">
+                                      <input className="input" maxLength={120} value={description} onChange={(event) => setDescription(event.target.value)} required />
+                                        </Field>
+                                      <Field label="Valor (R$)">
+                                        <input className="input" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required />
+                                          </Field>
+                                        <Field label="Tipo">
+                                          <select className="select" value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
+                                            <option value="EXPENSE">Despesa</option>
+                                            <option value="INCOME">Entrada</option>
+                                            </select>
+                                          </Field>
+                                        <Field label="Perfil">
+                                          <select className="select" value={entity} onChange={(event) => { setEntity(event.target.value as EntityType); setCategory('Geral'); }}>
+                                            <option value="PHYSICAL">PF</option>
+                                            <option value="LEGAL">PJ</option>
+                                            </select>
+                                          </Field>
+                                        <Field label="Categoria">
+                                          <select className="select" value={category} onChange={(event) => { setCategory(event.target.value); setShowQuickCategory(event.target.value === '__new__'); }}>
+                                            <option value="Geral">Geral</option>{entryCategories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}<option value="__new__">+ Criar categoria</option>
+                                          </select>
+                                          </Field>
+                                        <Field label="Situação">
+                                          <select className="select" value={status} onChange={(event) => setStatus(event.target.value as 'PAID' | 'PENDING')}>
+                                            <option value="PAID">Pago / recebido</option>
+                                            <option value="PENDING">Pendente</option>
+                                            </select>
+                                          </Field>
+                                        <Field label="Data">
+                                          <input className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+                                            </Field>
+                                          <Field label="Vencimento">
+                                            <input className="input" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+                                              </Field>
+                                            <Field label="Cartão">
+                                              <select className="select" value={cardId} onChange={(event) => setCardId(event.target.value)}>
+                                                <option value="">Sem cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}</option>)}</select>
+                                              </Field>
+                                            {!editing && <>
+                                            <Field label="Parcelas">
+                                              <select className="select" value={installments} onChange={(event) => setInstallments(event.target.value)}>{Array.from({ length: 60 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}x</option>)}</select>
+                                              </Field>
+                                            <Field label="Repetição">
+                                              <select className="select" value={recurrence} onChange={(event) => setRecurrence(event.target.value)}>
+                                                <option value="">Não se repete</option>
+                                                <option value="WEEKLY">Semanal</option>
+                                                <option value="MONTHLY">Mensal</option>
+                                                <option value="YEARLY">Anual</option>
+                                                </select>
+                                              </Field>{recurrence && <Field label="Repetir até">
+                                              <input className="input" type="date" min={date} value={recurrenceEndDate} onChange={(event) => setRecurrenceEndDate(event.target.value)} required />
+                                                </Field>}</>}
+                                              {showQuickCategory && <div className="form-section form-section-wide">
+                                                <h3>Nova categoria</h3>
+                                                <div className="form-grid">
+                                                  <Field label="Nome">
+                                                    <input className="input" value={quickCategoryName} onChange={(event) => setQuickCategoryName(event.target.value)} maxLength={60} required />
+                                                    </Field>
+                                                    <Field label="Descrição">
+                                                      <input className="input" value={quickCategoryDescription} onChange={(event) => setQuickCategoryDescription(event.target.value)} maxLength={180} />
+                                                      </Field>
+                                                      <button className="button button-secondary" type="button" onClick={() => setShowQuickCategory(false)}>Cancelar categoria</button>
+                                                      <button className="button button-secondary" type="button" onClick={() => void createQuickCategory()} disabled={busy}>Criar categoria</button>
+                                                    </div>
+                                                  </div>}
+                                                  <div className="form-section form-section-wide">
+                                                    <h3>Origem e finalidade</h3>
+                                                    <div className="form-grid form-grid-expanded">
+                                                      <Field label="Finalidade">
+                                                        <select className="select" value={purpose} onChange={(event) => setPurpose(event.target.value)}>
+                                                          <option value="STANDARD">Movimentação comum</option>
+                                                          <option value="CARD_PAYMENT">Pagamento de fatura</option>
+                                                          <option value="LOAN">Empréstimo</option>
+                                                          <option value="DONATION">Doação</option>
+                                                          <option value="SUBSCRIPTION">Assinatura</option>
+                                                          </select>
+                                                        </Field>
+                                                      <Field label="Conta / instituição">
+                                                        <select className="select" value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+                                                          <option value="">Sem conta vinculada</option>{accounts.filter((account) => account.entity === entity).map((account) => <option key={account.id} value={account.id}>{account.institution} · {account.name}</option>)}</select>
+                                                        </Field>
+                                                      <Field label="Observações">
+                                                        <input className="input" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={300} />
+                                                          </Field>
+                                                        <label className="check-field">
+                                                          <input type="checkbox" checked={autoDebit} onChange={(event) => setAutoDebit(event.target.checked)} />Débito automático</label>
+                                                          <label className="check-field">
+                                                            <input type="checkbox" checked={isSubscription} onChange={(event) => setIsSubscription(event.target.checked)} />Assinatura</label>
+                                                            </div>
+                                                          </div>
+                                                        <div className="modal-actions form-section-wide">
+                                                          <button className="button button-secondary" type="button" onClick={() => { setEntryModalOpen(false); resetForm(); }}>Cancelar</button>
+                                                          <button className="button button-primary" type="submit" name="saveScope" value="single" disabled={busy}>{editing ? 'Salvar' : 'Adicionar lançamento'}</button>{editing?.recurrenceGroup && <button className="button button-primary" type="submit" name="saveScope" value="group" disabled={busy}>Salvar em grupo</button>}</div>
+                                                        </form>
+                                                      </section>
+                                                    </div>}
+
+                                                  {deleteTarget && <div className="modal-backdrop" role="presentation">
+                                                    <section className="modal-card confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+                                                      <h2 className="panel-title" id="delete-title">O que deseja excluir?</h2>
+                                                      <p>{deleteTarget.description} ? {money.format(deleteTarget.amount)} ? {formatDate(deleteTarget.date)}</p>
+                                                      <p>Você pode remover apenas este item ou todas as ocorrências deste grupo.</p>
+                                                      <div className="modal-actions">
+                                                        <button className="button button-secondary" type="button" onClick={() => setDeleteTarget(null)}>Cancelar</button>
+                                                        <button className="button button-danger" type="button" onClick={() => void removeEntry(deleteTarget)}>Excluir somente este</button>{deleteTarget.recurrenceGroup && <button className="button button-danger" type="button" onClick={() => void removeEntry(deleteTarget, true)}>Excluir grupo ({entries.filter((item) => item.recurrenceGroup === deleteTarget.recurrenceGroup).length})</button>}</div>
+                                                      </section>
+                                                    </div>}
+                                                  </main>
+                                                );
 }
 
 function FinancialCharts({ entries }: { entries: Entry[] }) {
@@ -310,16 +1074,157 @@ function FinancialCharts({ entries }: { entries: Entry[] }) {
   const months = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(current.getFullYear(), current.getMonth() - (5 - index), 1);
     const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const items = entries.filter(item => item.status === 'PAID' && item.date.slice(0, 7) === key);
-    return { key, label: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date), income: items.filter(item => item.type === 'INCOME').reduce((sum, item) => sum + item.amount, 0), expense: items.filter(item => item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT').reduce((sum, item) => sum + item.amount, 0) };
+    const monthlyEntries = entries.filter((item) => item.status === 'PAID' && item.date.slice(0, 7) === key);
+    const income = monthlyEntries
+      .filter((item) => item.type === 'INCOME')
+      .reduce((total, item) => total + item.amount, 0);
+    const expenses = monthlyEntries
+      .filter((item) => item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT')
+      .reduce((total, item) => total + item.amount, 0);
+
+    return {
+      key,
+      label: new Intl.DateTimeFormat('pt-BR', { month: 'short' }).format(date),
+      income,
+      expenses,
+    };
   });
-  const max = Math.max(1, ...months.flatMap(month => [month.income, month.expense]));
-  return <section className="panel"><div className="panel-heading"><div><h2 className="panel-title">Vis?o financeira</h2><p className="panel-description">Entradas e despesas confirmadas nos ?ltimos seis meses.</p></div></div><div className="chart-legend"><span><i className="chart-dot chart-income" />Entradas</span><span><i className="chart-dot chart-expense" />Despesas</span></div><div className="financial-chart-grid" role="img" aria-label="Gr?fico mensal de entradas e despesas"><div className="chart-axis"><span>{money.format(max)}</span><span>{money.format(max / 2)}</span><span>R$ 0</span></div>{months.map(month => <div className="chart-column" key={month.key}><div className="chart-bars"><span className="chart-bar chart-income" style={{ height: `${Math.max(month.income ? 3 : 0, month.income / max * 100)}%` }} title={`Entradas: ${money.format(month.income)}`} /><span className="chart-bar chart-expense" style={{ height: `${Math.max(month.expense ? 3 : 0, month.expense / max * 100)}%` }} title={`Despesas: ${money.format(month.expense)}`} /></div><span className="chart-month">{month.label}</span></div>)}</div></section>;
+  const maxValue = Math.max(1, ...months.flatMap((month) => [month.income, month.expenses]));
+
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <div>
+          <h2 className="panel-title">Visão financeira</h2>
+          <p className="panel-description">Entradas e despesas confirmadas nos Últimos seis meses.</p>
+        </div>
+      </div>
+      <div className="chart-legend" aria-hidden="true">
+        <span><i className="chart-dot chart-income" />Entradas</span>
+        <span><i className="chart-dot chart-expense" />Despesas</span>
+      </div>
+      <div className="financial-chart-grid" role="img" aria-label="Gráfico mensal de entradas e despesas">
+        <div className="chart-axis"><span>{money.format(maxValue)}</span><span>{money.format(maxValue / 2)}</span><span>R$ 0</span></div>
+        {months.map((month) => (
+          <div className="chart-column" key={month.key}>
+            <div className="chart-bars">
+              <span className="chart-bar chart-income" style={{ height: `${month.income ? Math.max(3, month.income / maxValue * 100) : 0}%` }} title={`Entradas: ${money.format(month.income)}`} />
+              <span className="chart-bar chart-expense" style={{ height: `${month.expenses ? Math.max(3, month.expenses / maxValue * 100) : 0}%` }} title={`Despesas: ${money.format(month.expenses)}`} />
+            </div>
+            <span className="chart-month">{month.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
-function Summary({ title, value }: { title: string; value: number }) { return <article className="summary-card"><span className="summary-label">{title}</span><strong className="summary-value">{money.format(value)}</strong></article>; }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="field"><span className="field-label">{label}</span>{children}</label>; }
-function FilterPanel({ month, setMonth, from, setFrom, to, setTo, status, setStatus, category, setCategory, categories, description, setDescription, onClear }: { month: string; setMonth: (v: string) => void; from: string; setFrom: (v: string) => void; to: string; setTo: (v: string) => void; status: string; setStatus: (v: string) => void; category: string; setCategory: (v: string) => void; categories: string[]; description: string; setDescription: (v: string) => void; onClear: () => void }) { return <section className="panel filter-panel" aria-label="Filtros dos lançamentos"><div className="panel-heading"><div><h2 className="panel-title">Filtros</h2><p className="panel-description">Período, situação, categoria e descrição.</p></div><button type="button" className="button button-secondary" onClick={onClear}>Limpar filtros</button></div><div className="filter-grid"><Field label="Mês"><input className="input" type="month" value={month} onChange={e => setMonth(e.target.value)} /></Field><Field label="Data inicial"><input className="input" type="date" value={from} onChange={e => setFrom(e.target.value)} /></Field><Field label="Data final"><input className="input" type="date" value={to} onChange={e => setTo(e.target.value)} /></Field><Field label="Situação"><select className="select" value={status} onChange={e => setStatus(e.target.value)}><option value="">Todas</option><option value="PAID">Pago / recebido</option><option value="PENDING">Pendente</option></select></Field><Field label="Categoria"><select className="select" value={category} onChange={e => setCategory(e.target.value)}><option value="">Todas</option>{categories.map(name => <option key={name} value={name}>{name}</option>)}</select></Field><Field label="Descrição"><input className="input" value={description} onChange={e => setDescription(e.target.value)} placeholder="Buscar texto..." /></Field></div></section>; }
-function EntryTable({ entries, onEdit, onDelete, onStatusChange, onEditSeries, onDeleteSeries, readOnly = false, sortKey, sortDirection, onSort }: { entries: Entry[]; onEdit?: (entry: Entry) => void; onDelete?: (entry: Entry) => void; onStatusChange?: (entry: Entry) => void; onEditSeries?: (entry: Entry) => void; onDeleteSeries?: (entry: Entry) => void; readOnly?: boolean; sortKey: SortKey; sortDirection: 'asc' | 'desc'; onSort: (key: SortKey) => void }) {
-  const heading = (key: SortKey, label: string, number = false) => <th className={number ? 'table-number' : ''} scope="col"><button type="button" className="sort-button" aria-label={`Ordenar por ${label}`} onClick={() => onSort(key)}>{label}{sortKey === key ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ''}</button></th>;
-  return <div className="table-wrap"><table className="data-table"><thead><tr>{heading('description', 'Descrição')}{heading('category', 'Categoria / cartão')}{heading('entity', 'Setor')}{heading('date', 'Data / vencimento')}{heading('status', 'Situação')}{heading('amount', 'Valor', true)}{!readOnly && <th scope="col">Ações</th>}</tr></thead><tbody>{entries.length ? entries.map(item => <tr key={item.id}><td>{item.description}{item.installmentNumber && <small className="muted-block">Parcela {item.installmentNumber}/{item.installmentTotal}</small>}{item.recurrenceGroup && <small className="muted-block">Repetição {item.recurrence === 'WEEKLY' ? 'semanal' : item.recurrence === 'YEARLY' ? 'anual' : 'mensal'} até {formatDate(item.recurrenceEndDate)}</small>}</td><td>{item.category || 'Geral'}{item.card && <small className="muted-block">{item.card.name}</small>}</td><td>{item.entity === 'PHYSICAL' ? 'Pessoal' : 'Empresa'}</td><td>{formatDate(item.date)}<small className="muted-block">Vence: {formatDate(item.dueDate)}</small></td><td><span className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</span></td><td className={`table-number ${item.type === 'INCOME' ? 'type-income' : 'type-expense'}`}>{item.type === 'INCOME' ? '+' : '−'}{money.format(item.amount)}</td>{!readOnly && <td><div className="row-actions"><button className="button button-secondary button-compact" type="button" onClick={() => onStatusChange?.(item)}>{item.status === 'PENDING' ? 'Confirmar pago' : 'Marcar pendente'}</button><button className="button button-secondary button-compact" type="button" onClick={() => onEdit?.(item)}>Editar</button>{item.recurrenceGroup && <><button className="button button-secondary button-compact" type="button" onClick={() => onEditSeries?.(item)}>Editar série</button><button className="button button-danger button-compact" type="button" onClick={() => onDeleteSeries?.(item)}>Excluir série</button></>}<button className="button button-danger button-compact" type="button" onClick={() => onDelete?.(item)}>Excluir</button></div></td>}</tr>) : <tr><td className="empty-state" colSpan={readOnly ? 6 : 7}>Nenhum lançamento para este filtro.</td></tr>}</tbody></table></div>;
+
+function Summary({ title, value }: { title: string; value: number }) {
+  return (
+    <article className="summary-card">
+      <span className="summary-label">{title}</span>
+      <strong className="summary-value">{money.format(value)}</strong>
+    </article>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="field">
+      <span className="field-label">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function FilterPanel({
+  month, setMonth, from, setFrom, to, setTo, status, setStatus,
+  category, setCategory, categories, description, setDescription, onClear,
+}: {
+  month: string; setMonth: (value: string) => void;
+  from: string; setFrom: (value: string) => void;
+  to: string; setTo: (value: string) => void;
+  status: string; setStatus: (value: string) => void;
+  category: string; setCategory: (value: string) => void;
+  categories: string[]; description: string; setDescription: (value: string) => void;
+  onClear: () => void;
+}) {
+  return (
+    <section className="panel filter-panel" aria-label="Filtros dos lançamentos">
+      <div className="panel-heading">
+        <div>
+          <h2 className="panel-title">Filtros</h2>
+          <p className="panel-description">Período, situação, categoria e descrição.</p>
+        </div>
+        <button type="button" className="button button-secondary" onClick={onClear}>Limpar filtros</button>
+      </div>
+      <div className="filter-grid">
+        <Field label="Mês"><input className="input" type="month" value={month} onChange={(event) => setMonth(event.target.value)} /></Field>
+        <Field label="Data inicial"><input className="input" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></Field>
+        <Field label="Data final"><input className="input" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></Field>
+        <Field label="Situação"><select className="select" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todas</option><option value="PAID">Pago / recebido</option><option value="PENDING">Pendente</option></select></Field>
+        <Field label="Categoria"><select className="select" value={category} onChange={(event) => setCategory(event.target.value)}><option value="">Todas</option>{categories.map((name) => <option key={name} value={name}>{name}</option>)}</select></Field>
+        <Field label="Descrição"><input className="input" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Buscar texto..." /></Field>
+      </div>
+    </section>
+  );
+}
+
+function EntryTable({
+  entries, onEdit, onDelete, onStatusChange, readOnly = false,
+  sortKey, sortDirection, onSort,
+}: {
+  entries: Entry[];
+  onEdit?: (entry: Entry) => void;
+  onDelete?: (entry: Entry) => void;
+  onStatusChange?: (entry: Entry) => void;
+  readOnly?: boolean;
+  sortKey: SortKey;
+  sortDirection: 'asc' | 'desc';
+  onSort: (key: SortKey) => void;
+}) {
+  function heading(key: SortKey, label: string, numeric = false) {
+    return (
+      <th className={numeric ? 'table-number' : ''} scope="col">
+        <button className="sort-button" type="button" onClick={() => onSort(key)}>
+          {label}{sortKey === key ? (sortDirection === 'asc' ? ' \u2191' : ' \u2193') : ''}
+        </button>
+      </th>
+    );
+  }
+
+  return (
+    <div className="table-wrap">
+      <table className="data-table">
+        <thead><tr>
+          {heading('description', 'Descrição')}
+          {heading('category', 'Categoria / cartão')}
+          {heading('entity', 'Setor')}
+          {heading('date', 'Data / vencimento')}
+          {heading('status', 'Situação')}
+          {heading('amount', 'Valor', true)}
+          {!readOnly && <th scope="col">Ações</th>}
+        </tr></thead>
+        <tbody>
+          {entries.map((item) => (
+            <tr key={item.id}>
+              <td>
+                {item.description}
+                {item.installmentNumber && <small className="muted-block">Parcela {item.installmentNumber}/{item.installmentTotal}</small>}
+                {item.recurrenceGroup && <small className="muted-block">Repetição {item.recurrence === 'WEEKLY' ? 'semanal' : item.recurrence === 'YEARLY' ? 'anual' : 'mensal'} até {formatDate(item.recurrenceEndDate)}</small>}
+                {item.isSubscription && <small className="muted-block">Assinatura{item.autoDebit ? ' ? débito automático' : ''}</small>}
+              </td>
+              <td>{item.category || 'Geral'}{item.card && <small className="muted-block">{item.card.name}</small>}</td>
+              <td>{item.entity === 'PHYSICAL' ? 'Pessoal' : 'Empresa'}</td>
+              <td>{formatDate(item.date)}<small className="muted-block">Vence: {formatDate(item.dueDate)}</small></td>
+          <td>{onStatusChange ? <button className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'} status-toggle`} type="button" onClick={() => onStatusChange(item)} aria-label={`Alterar situação de ${item.description}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</button> : <span className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</span>}</td>
+              <td className={`table-number ${item.type === 'INCOME' ? 'type-income' : 'type-expense'}`}>{item.type === 'INCOME' ? '+' : '\u2212'}{money.format(item.amount)}</td>
+              {!readOnly && (onEdit || onDelete) && <td><div className="row-actions">{onEdit && <button className="button button-secondary button-compact" type="button" onClick={() => onEdit(item)}>Editar</button>}{onDelete && <button className="button button-danger button-compact" type="button" onClick={() => onDelete(item)}>Excluir</button>}</div></td>}
+            </tr>
+          ))}
+          {!entries.length && <tr><td className="empty-state" colSpan={readOnly || (!onEdit && !onDelete) ? 6 : 7}>Nenhum lançamento para este filtro.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
 }

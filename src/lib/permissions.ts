@@ -1,4 +1,4 @@
-﻿import { getServerSession } from 'next-auth';
+import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -29,6 +29,10 @@ export async function requirePermission(permission: Permission): Promise<AccessR
 
   const permissions = parsePermissions(user.permissions);
   const isAdmin = user.role === 'ADMIN';
+
+  if (user.role === 'BLOCKED') {
+    return { response: NextResponse.json({ error: 'A conta ainda não recebeu acesso.' }, { status: 403 }) };
+  }
 
   if (!isAdmin && !permissions.includes(permission)) {
     return { response: NextResponse.json({ error: 'Sua conta não tem permissão para esta ação.' }, { status: 403 }) };
