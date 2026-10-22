@@ -792,7 +792,7 @@ export default function DashboardPage() {
   }
 
   const hasViewPermission = session?.user.role === 'ADMIN'
-    || session?.user.permissions.includes('view')
+    || session?.user.permissions?.includes('view')
     || financeInstances.some((finance) => finance.permissions.includes('view'));
 
   if (session?.user && !hasViewPermission) {

@@ -38,7 +38,8 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         session.user.id = token.sub;
         session.user.role = user.role;
-        session.user.permissions = user.permissions;
+        // Older or partially migrated user records must not break dashboard rendering.
+        session.user.permissions = user.permissions || '[]';
       }
       return session;
     },
