@@ -25,7 +25,7 @@ export const authOptions: NextAuthOptions = {
 
         const ip = getRequestIp(req.headers ?? {});
         if (ip && !checkRateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000)) return null;
-        if (!checkRateLimit(`login-account:${email}`, 20, 15 * 60 * 1000)) return null;
+        if (!checkRateLimit(`login-account:${email}`, 100, 24 * 60 * 60 * 1000)) return null;
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
