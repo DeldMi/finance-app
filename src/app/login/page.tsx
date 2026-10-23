@@ -4,6 +4,10 @@ import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
 
+// import { Eye, EyeOff } from 'lucide-react';
+
+import './module.css';
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -13,6 +17,8 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,6 +131,7 @@ function LoginForm() {
                 />
               </label>
             )}
+
             <label className="field">
               <span className="field-label">E-mail</span>
               <input
@@ -133,23 +140,78 @@ function LoginForm() {
                 autoComplete="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="voce@exemplo.com"
+                placeholder="voce@exemplo.com.br"
                 required
               />
             </label>
+
             <label className="field">
               <span className="field-label">Senha</span>
-              <input
-                className="input"
-                type="password"
-                autoComplete={isRegistering ? 'new-password' : 'current-password'}
-                minLength={isRegistering ? 8 : undefined}
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder={isRegistering ? 'Mínimo de 8 caracteres' : 'Sua senha'}
-                required
-              />
+
+              <div className="password-input-wrapper">
+                <input
+                  className="input password-input"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete={
+                    isRegistering ? 'new-password' : 'current-password'
+                  }
+                  minLength={isRegistering ? 8 : undefined}
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={
+                    isRegistering ? 'Mínimo de 8 caracteres' : 'Sua senha'
+                  }
+                  required
+                />
+
+                <button
+                  type="button"
+                  className="password-toggle"
+                  onClick={() => setShowPassword((previous) => !previous)}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M3 3l18 18" />
+                      <path d="M10.58 10.58a2 2 0 0 0 2.83 2.83" />
+                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4.9c5 0 8.27 4.11 9.5 7.1a11.8 11.8 0 0 1-2.04 3.14" />
+                      <path d="M6.61 6.61C4.62 7.83 3.25 9.65 2.5 12c.63 1.8 2.03 3.7 4.5 5.5a10.9 10.9 0 0 0 5 1.1c1.1 0 2.15-.2 3.12-.55" />
+                    </svg>
+                  ) : (
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                    >
+                      <path d="M2.5 12s3.5-7 9.5-7 9.5 7 9.5 7-3.5 7-9.5 7-9.5-7-9.5-7Z" />
+                      <circle cx="12" cy="12" r="3" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </label>
+
+
+
             <button className="button button-primary" type="submit" disabled={busy}>
               {busy
                 ? 'Aguarde...'
@@ -173,8 +235,26 @@ function LoginForm() {
             </button>
           </p>
         </div>
+
+        
+<footer className="login-footer">
+  <p>
+    &copy; {new Date().getFullYear()}{' '}
+    <a
+      href="https://www.a3gs.com.br"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      A3GS Tec
+    </a>
+    {' '}- Minha Finança.
+    <span> Todos os direitos reservados.</span>
+  </p>
+</footer>
+
+
       </section>
-    </main>
+    </main >
   );
 }
 

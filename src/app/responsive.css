@@ -1,0 +1,607 @@
+
+/* =========================================================
+   RESPONSIVE.CSS
+   Camada complementar — não altera o CSS original.
+   Carregar depois do arquivo principal.
+   ========================================================= */
+
+/* ---------- 1. Base responsiva ---------- */
+
+html {
+  width: 100%;
+  overflow-x: clip;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  width: 100%;
+  overflow-x: clip;
+}
+
+img,
+video,
+iframe,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+.app-shell {
+  width: min(100% - 40px, 1440px);
+  margin-inline: auto;
+}
+
+.panel,
+.summary-card,
+.modal-card,
+.login-card,
+.payment-card {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.panel-heading > *,
+.page-header > *,
+.header-actions > * {
+  min-width: 0;
+}
+
+/* ---------- 2. Monitores ultrawide ---------- */
+
+@media (min-width: 1600px) {
+  .app-shell {
+    width: min(100% - 80px, 1560px);
+  }
+
+  .summary-grid,
+  .summary-grid-wide {
+    gap: 20px;
+  }
+
+  .panel {
+    padding: 30px;
+    margin-bottom: 24px;
+  }
+
+  .summary-card {
+    padding: 26px;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 15px 16px;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(260px, 1fr)
+    );
+  }
+}
+
+/* ---------- 3. Notebooks e desktops ---------- */
+
+@media (min-width: 1121px) and (max-width: 1599px) {
+  .app-shell {
+    width: min(100% - 48px, 1320px);
+  }
+
+  .form-grid {
+    grid-template-columns:
+      minmax(180px, 2fr)
+      repeat(3, minmax(115px, 1fr))
+      auto;
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- 4. Tablets horizontais ---------- */
+
+@media (min-width: 761px) and (max-width: 1120px) {
+  .app-shell {
+    width: calc(100% - 36px);
+    padding-top: 28px;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-grid-wide {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .form-grid,
+  .form-grid-expanded {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overview-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-create-grid,
+  .finance-share-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-create-grid > :last-child,
+  .finance-share-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .backup-action-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .backup-action-grid > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .user-permission-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---------- 5. Tablets verticais e celulares grandes ---------- */
+
+@media (min-width: 481px) and (max-width: 760px) {
+  .app-shell {
+    width: calc(100% - 28px);
+    padding-top: 24px;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-grid-wide {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .form-grid,
+  .form-grid-expanded,
+  .simulator-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .overview-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .section-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .header-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-clock,
+  .finance-switcher,
+  .theme-switcher {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .backup-action-grid,
+  .backup-server-picker,
+  .backup-schedule-grid,
+  .finance-create-grid,
+  .finance-share-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shopping-list-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-backdrop {
+    padding: 12px;
+  }
+
+  .modal-card {
+    width: 100%;
+    padding: 20px;
+  }
+}
+
+/* ---------- 6. Celulares ---------- */
+
+@media (max-width: 480px) {
+  .app-shell {
+    width: calc(100% - 24px);
+    padding-top: 18px;
+    padding-bottom: 32px;
+  }
+
+  .page-header {
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .brand-lockup {
+    gap: 10px;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    font-size: 20px;
+  }
+
+  .page-title {
+    font-size: clamp(22px, 6vw, 27px);
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+  }
+
+  .summary-grid,
+  .summary-grid-wide,
+  .form-grid,
+  .form-grid-expanded,
+  .filter-grid,
+  .simulator-form,
+  .overview-columns,
+  .backup-action-grid,
+  .backup-server-picker,
+  .backup-schedule-grid,
+  .finance-create-grid,
+  .finance-share-grid,
+  .shopping-list-controls {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .form-grid > :first-child,
+  .simulator-form > :first-child,
+  .form-grid-expanded > :first-child {
+    grid-column: auto;
+  }
+
+  .summary-card {
+    padding: 17px;
+  }
+
+  .summary-value {
+    font-size: clamp(22px, 7vw, 27px);
+    overflow-wrap: anywhere;
+  }
+
+  .panel {
+    padding: 15px 12px;
+    margin-bottom: 14px;
+    border-radius: 13px;
+  }
+
+  .panel-heading {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .panel-actions,
+  .report-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .panel-actions > .button,
+  .report-actions > .button,
+  .header-actions > .button {
+    width: 100%;
+  }
+
+  .header-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .section-nav {
+    gap: 5px;
+    margin-bottom: 16px;
+    padding: 4px;
+  }
+
+  .section-link {
+    min-height: 36px;
+    padding: 8px 11px;
+    font-size: 12px;
+  }
+
+  .row-actions {
+    align-items: stretch;
+    justify-content: flex-start;
+  }
+
+  .row-actions .button {
+    max-width: 100%;
+  }
+
+  .category-search,
+  .shopping-list-name {
+    width: 100%;
+    max-width: none;
+  }
+
+  .shopping-list-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  .shopping-list-actions .button {
+    width: 100%;
+  }
+
+  .budget-overview {
+    padding: 12px;
+  }
+
+  .budget-value {
+    font-size: 17px;
+    overflow-wrap: anywhere;
+  }
+
+  .payment-card {
+    min-height: 160px;
+    padding: 17px;
+  }
+
+  .card-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .backup-config-actions {
+    align-items: stretch;
+  }
+
+  .backup-config-actions .button {
+    min-width: 0;
+  }
+
+  .user-permission-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 9px;
+  }
+
+  .finance-member-row {
+    align-items: stretch;
+  }
+
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    padding: 16px 12px;
+    border-radius: 13px;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .modal-actions > .button {
+    width: 100%;
+  }
+
+  .report-preview-frame {
+    min-height: 55dvh;
+  }
+
+  .live-logs-output {
+    min-height: 240px;
+    max-height: 60dvh;
+    padding: 10px;
+    font-size: 11px;
+  }
+
+  .financial-chart-grid {
+    grid-template-columns: 48px repeat(6, minmax(0, 1fr));
+    height: 175px;
+  }
+
+  .chart-bars {
+    gap: 2px;
+    padding-inline: 2px;
+  }
+
+  .chart-month {
+    font-size: 10px;
+  }
+
+  .chart-legend {
+    flex-wrap: wrap;
+    gap: 8px 14px;
+  }
+
+  .login-story {
+    min-height: 220px;
+  }
+
+  .login-form-side {
+    min-height: calc(100dvh - 220px);
+    padding: 24px 18px;
+  }
+}
+
+/* ---------- 7. Telas muito estreitas ---------- */
+
+@media (max-width: 360px) {
+  .app-shell {
+    width: calc(100% - 16px);
+  }
+
+  .summary-grid-wide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shopping-list-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .brand-lockup {
+    align-items: flex-start;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .panel-title {
+    font-size: 15px;
+  }
+
+  .button {
+    padding-inline: 10px;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-card {
+    padding: 12px 9px;
+  }
+}
+
+/* ---------- 8. Tabelas adaptativas ---------- */
+
+/*
+   Preserva a estrutura da tabela.
+   A rolagem horizontal fica restrita ao contêiner.
+*/
+
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+  width: 100%;
+  min-width: 620px;
+}
+
+.permission-table {
+  overflow-x: auto;
+}
+
+.permission-table .data-table {
+  min-width: 760px;
+}
+
+/* ---------- 9. Formulários e controles ---------- */
+
+.input,
+.select,
+.field,
+.field-label,
+.inline-field {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.input,
+.select {
+  overflow-wrap: anywhere;
+}
+
+.inline-field .input {
+  flex: 1 1 auto;
+}
+
+.inline-field .button {
+  flex: 0 0 auto;
+}
+
+button,
+.button,
+.section-link,
+.segment-button {
+  max-width: 100%;
+  white-space: normal;
+}
+
+/* ---------- 10. Gráficos ---------- */
+
+.financial-chart-grid {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.chart-column,
+.chart-bars {
+  min-width: 0;
+}
+
+.chart-month {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 11. Acessibilidade ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- 12. Impressão ---------- */
+
+@media print {
+  html,
+  body {
+    width: 100%;
+    overflow: visible;
+    background: white !important;
+  }
+
+  .app-shell {
+    width: 100%;
+    max-width: none;
+    padding: 0;
+  }
+
+  .table-wrap {
+    overflow: visible;
+  }
+
+  .data-table {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .panel,
+  .summary-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}

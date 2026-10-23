@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import PurchaseSimulator from '@/components/PurchaseSimulator';
 
+
+import DashboardMenu, {
+  type DashboardTab,
+} from '@/components/DashboardMenu';
+
+
 type Account = { id: string; entity: string; initialBalance: number };
 type Transaction = {
   accountId: string | null;
@@ -12,6 +18,8 @@ type Transaction = {
   status: string;
   type: string;
 };
+
+type Tab = DashboardTab;
 
 async function readResponse(response: Response) {
   const text = await response.text();
@@ -22,6 +30,9 @@ async function readResponse(response: Response) {
 }
 
 export default function ShoppingPlannerPage() {
+
+  const [tab, setTab] = useState<DashboardTab>('overview');
+
   const [balances, setBalances] = useState({ physical: 0, legal: 0 });
   const [error, setError] = useState('');
 
@@ -54,6 +65,19 @@ export default function ShoppingPlannerPage() {
         </div>
         <Link className="button button-secondary" href="/dashboard">Voltar ao painel</Link>
       </header>
+
+
+      {/* <DashboardMenu
+        tab={tab}
+        setTab={setTab}
+        onSettingsClick={() => {
+          if (session?.user.role === 'ADMIN') {
+            void loadAdminUsers();
+          }
+        }}
+      /> */}
+
+
       {error && <p className="form-error" role="alert">{error}</p>}
       <PurchaseSimulator physicalBalance={balances.physical} legalBalance={balances.legal} />
     </main>

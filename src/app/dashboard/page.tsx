@@ -5,6 +5,10 @@ import { signOut, useSession } from 'next-auth/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { EntityType, TransactionType } from '@/lib/types';
 
+import DashboardMenu, {
+  type DashboardTab,
+} from '@/components/DashboardMenu';
+
 type Card = {
   id: string;
   name: string;
@@ -70,7 +74,10 @@ type FinancePermission = 'view' | 'create' | 'edit' | 'delete';
 type Theme = 'light' | 'dark';
 
 type ReportModel = { name: string; html: string; css: string };
-type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
+
+// type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
+type Tab = DashboardTab;
+
 type SortKey = 'description' | 'category' | 'entity' | 'date' | 'dueDate' | 'status' | 'amount';
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR').format(new Date(value)) : '—';
@@ -797,41 +804,41 @@ export default function DashboardPage() {
 
   if (session?.user && !hasViewPermission) {
     return (
-  <main className="app-shell access-blocked">
-    <section className="panel">
-      <h1 className="panel-title">Acesso aguardando liberação</h1>
-      <p className="panel-description">Sua conta foi criada, mas ainda não recebeu permissão para visualizar o financeiro. Peça ao administrador para liberar seu acesso.</p>
-      <button className="button button-secondary" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
-      </section>
-    </main>
-  );
+      <main className="app-shell access-blocked">
+        <section className="panel">
+          <h1 className="panel-title">Acesso aguardando liberação</h1>
+          <p className="panel-description">Sua conta foi criada, mas ainda não recebeu permissão para visualizar o financeiro. Peça ao administrador para liberar seu acesso.</p>
+          <button className="button button-secondary" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
+        </section>
+      </main>
+    );
   }
 
   return (
-  <main className="app-shell">
-    <header className="page-header">
-      <div className="brand-lockup">
-        <span className="brand-mark" aria-hidden="true">MF</span>
-        <div>
-          <p className="eyebrow">Seu dinheiro, com clareza</p>
-          <h1 className="page-title">Painel financeiro</h1>
-          <p className="page-subtitle">Organize contas, cartões e compromissos em um só lugar.</p>
+    <main className="app-shell">
+      <header className="page-header">
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true">MF</span>
+          <div>
+            <p className="eyebrow">Seu dinheiro, com clareza</p>
+            <h1 className="page-title">Painel financeiro</h1>
+            <p className="page-subtitle">Organize contas, cartões e compromissos em um só lugar.</p>
           </div>
         </div>
-      <div className="header-actions">
-        <div className="dashboard-clock" aria-label="Data e hora atuais">
-          <span>Agora</span>
-          <strong>{currentTime ? new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(currentTime) : '--'}</strong>
-          <time>{currentTime ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(currentTime) : '--:--:--'}</time>
+        <div className="header-actions">
+          <div className="dashboard-clock" aria-label="Data e hora atuais">
+            <span>Agora</span>
+            <strong>{currentTime ? new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(currentTime) : '--'}</strong>
+            <time>{currentTime ? new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(currentTime) : '--:--:--'}</time>
+          </div>
+          <label className="finance-switcher"><span>Instancia financeira</span><select className="select" value={activeFinanceId} onChange={(event) => { localStorage.setItem('active-finance-id', event.target.value); setActiveFinanceId(event.target.value); void refresh(); }}><option value="" disabled>Selecione uma instancia</option>{financeInstances.map((finance) => <option key={finance.id} value={finance.id}>{finance.name} &middot; {finance.entity === 'LEGAL' ? 'PJ' : finance.entity === 'ALL' ? 'Geral' : 'PF'}{finance.ownerId !== session?.user.id ? ` &middot; ${finance.owner.name}` : ''}</option>)}</select></label>
+          <label className="theme-switcher"><span>Tema</span><select className="select" aria-label="Tema da interface" value={theme} onChange={(event) => changeTheme(event.target.value as Theme)}><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
+          <button className="button button-secondary header-signout" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
         </div>
-        <label className="finance-switcher"><span>Instancia financeira</span><select className="select" value={activeFinanceId} onChange={(event) => { localStorage.setItem('active-finance-id', event.target.value); setActiveFinanceId(event.target.value); void refresh(); }}><option value="" disabled>Selecione uma instancia</option>{financeInstances.map((finance) => <option key={finance.id} value={finance.id}>{finance.name} &middot; {finance.entity === 'LEGAL' ? 'PJ' : finance.entity === 'ALL' ? 'Geral' : 'PF'}{finance.ownerId !== session?.user.id ? ` &middot; ${finance.owner.name}` : ''}</option>)}</select></label>
-        <label className="theme-switcher"><span>Tema</span><select className="select" aria-label="Tema da interface" value={theme} onChange={(event) => changeTheme(event.target.value as Theme)}><option value="light">Claro</option><option value="dark">Escuro</option></select></label>
-        <button className="button button-secondary header-signout" type="button" onClick={() => void signOut({ callbackUrl: '/login' })}>Sair da conta</button>
-      </div>
-    </header>
+      </header>
 
-  {/* Menus agrupados por área para facilitar a navegação. */}
-  <nav className="section-nav" aria-label="Seções do financeiro">
+      {/* Menus agrupados por área para facilitar a navegação. */}
+      {/* <nav className="section-nav" aria-label="Seções do financeiro">
     {([['overview', 'Visão geral'], ['entries', 'Lançamentos'], ['cards', 'Cartões'], ['institutions', 'Bancos e contas'], ['categories', 'Categorias'], ['reports', 'Relatórios']] as const).map(([value, label]) => (
     <button key={value} className={`section-link ${tab === value ? 'section-link-active' : ''}`} type="button"
     aria-current={tab === value ? 'page' : undefined} onClick={() => setTab(value)}>{label}</button>
@@ -839,455 +846,467 @@ export default function DashboardPage() {
   <Link className="section-link" href="/dashboard/shopping">Planeje antes de comprar</Link>
   <button className={`section-link ${tab === 'settings' ? 'section-link-active' : ''}`} type="button"
   onClick={() => { setTab('settings'); if (session?.user.role === 'ADMIN') void loadAdminUsers(); }}>Configurações</button>
-  </nav>
+  </nav> */}
 
-  {error && <p className="form-error" role="alert">{error}</p>}
-  {(tab === 'overview' || tab === 'entries' || tab === 'reports') && (
-  <FilterPanel month={monthFilter} setMonth={setMonthFilter} from={fromDate} setFrom={setFromDate}
-  to={toDate} setTo={setToDate} status={statusFilter} setStatus={setStatusFilter}
-  category={categoryFilter} setCategory={setCategoryFilter} categories={categoryOptions}
-  description={descriptionFilter} setDescription={setDescriptionFilter}
-  onClear={() => { setMonthFilter(''); setFromDate(''); setToDate(''); setStatusFilter(''); setCategoryFilter(''); setDescriptionFilter(''); }} />
-  )}
 
-  {tab === 'overview' && <>
-  <section className="summary-grid summary-grid-wide" aria-label="Resumo financeiro">
-    <Summary title="Entradas pagas" value={income} />
-    <Summary title="Despesas pagas" value={expenses} />
-    <Summary title="Saldo realizado" value={balance} />
-    <Summary title="Contas a pagar" value={due} />
-    <Summary title="A receber" value={incoming} />
-    </section>
-  {/* A lista simulada fica acima do gráfico e não altera o extrato até a confirmação. */}
-  <FinancialCharts entries={visibleEntries} />
-  <div className="overview-columns">
-    <section className="panel">
-      <h2 className="panel-title">Despesas por categoria</h2>
-      {expenseCategories.length ? expenseCategories.slice(0, 7).map(([label, value]) => <div className="category-row" key={label}>
-        <span>{label}</span>
-        <strong>{money.format(value)}</strong>
-        </div>) : <p className="panel-description">Nenhum lançamento neste filtro.</p>}
-      </section>
-    <section className="panel">
-      <div className="panel-heading">
-        <div>
-          <h2 className="panel-title">Próximos compromissos</h2>
-          <p className="panel-description">Contas pendentes no período selecionado.</p>
-          </div>
-        <button className="button button-secondary" type="button" onClick={() => setTab('entries')}>Ver todos</button>
-        </div>
-      {visibleEntries.filter((item) => item.status === 'PENDING').slice(0, 5).map((item) => <div className="category-row" key={item.id}>
-        <span>{item.description}<small className="muted-block">Vencimento: {formatDate(item.dueDate)}</small>
-          </span>
-        <strong>{money.format(item.amount)}</strong>
-        </div>)}
-      </section>
-    </div>
-  </>}
+      <DashboardMenu
+        tab={tab}
+        setTab={setTab}
+        onSettingsClick={() => {
+          if (session?.user.role === 'ADMIN') {
+            void loadAdminUsers();
+          }
+        }}
+      />
 
-  {tab === 'entries' && <>
-  <section className="panel category-shortcuts">
-    <div className="panel-heading">
-      <div>
-        <h2 className="panel-title">Categorias do perfil selecionado</h2>
-        <p className="panel-description">No modo Geral são exibidas todas; em PF ou PJ, somente as categorias daquele perfil.</p>
-        </div>
-      <button className="button button-secondary" type="button" onClick={() => setTab('categories')}>Gerenciar categorias</button>
-      </div>
-    <div className="category-chip-list">{categories.filter((item) => item.entity === 'ALL' || item.entity === entity).map((item) => <button className="category-chip" type="button" key={item.id} onClick={() => setCategoryFilter(item.name)}>{item.name}</button>)}</div>
-    </section>
-  <section className="panel">
-    <div className="panel-heading">
-      <div>
-        <h2 className="panel-title">Todos os lançamentos</h2>
-        <p className="panel-description">Ordene pelas colunas. Clique na situação para marcar pago ou pendente.</p>
-        </div>
-      <div className="panel-actions">
-        <button className="button button-secondary" type="button" onClick={() => void refresh()}>Atualizar</button>
-        <button className="button button-primary" type="button" onClick={() => { resetForm(); setEntryModalOpen(true); }}>+ Novo lançamento</button>
-        </div>
-      </div>
-    <EntryTable entries={visibleEntries} onEdit={canEdit ? startEdit : undefined} onDelete={canDelete ? setDeleteTarget : undefined} onStatusChange={canEdit ? (item) => void changeEntryStatus(item) : undefined} sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
-      </section>
-    </>}
 
-    {tab === 'cards' && <>
-    <section className="panel">
-      <h2 className="panel-title">Cartões cadastrados</h2>
-      <div className="card-grid">
-        {cards.map((card) => {
-        const purchases = card.paymentType === 'CREDIT' ? entries.filter((item) => item.cardId === card.id && item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT').reduce((sum, item) => sum + item.amount, 0) : 0;
-        const payments = entries.filter((item) => item.cardId === card.id && item.purpose === 'CARD_PAYMENT' && item.status === 'PAID').reduce((sum, item) => sum + item.amount, 0);
-        const debt = Math.max(0, purchases - payments);
-        return <article className="payment-card" key={card.id}>
-          <span className="eyebrow">{card.paymentType === 'CREDIT' ? 'Crédito' : 'Débito'} · {card.brand || 'Cartão'}</span>
-          <h3>{card.name}</h3>
-          <p>{card.paymentType === 'CREDIT' ? `Fatura estimada: ${money.format(debt)}` : 'Cartão de débito'}</p>
-          <strong>{card.paymentType === 'CREDIT' && card.creditLimit != null ? `Disponível: ${money.format(Math.max(0, card.creditLimit - debt))}` : '\u2212'}</strong>
-          <small>{card.lastFour ? `Final ${card.lastFour}` : 'Final não informado'}</small>
-          <div className="row-actions">
-            {canEdit && <button className="button button-secondary button-compact" type="button" onClick={() => editCard(card)}>Editar</button>}
-            {canDelete && <button className="button button-danger button-compact" type="button" onClick={() => void deleteCard(card)}>Excluir</button>}
+      {error && <p className="form-error" role="alert">{error}</p>}
+      {(tab === 'overview' || tab === 'entries' || tab === 'reports') && (
+        <FilterPanel month={monthFilter} setMonth={setMonthFilter} from={fromDate} setFrom={setFromDate}
+          to={toDate} setTo={setToDate} status={statusFilter} setStatus={setStatusFilter}
+          category={categoryFilter} setCategory={setCategoryFilter} categories={categoryOptions}
+          description={descriptionFilter} setDescription={setDescriptionFilter}
+          onClear={() => { setMonthFilter(''); setFromDate(''); setToDate(''); setStatusFilter(''); setCategoryFilter(''); setDescriptionFilter(''); }} />
+      )}
+
+      {tab === 'overview' && <>
+        <section className="summary-grid summary-grid-wide" aria-label="Resumo financeiro">
+          <Summary title="Entradas pagas" value={income} />
+          <Summary title="Despesas pagas" value={expenses} />
+          <Summary title="Saldo realizado" value={balance} />
+          <Summary title="Contas a pagar" value={due} />
+          <Summary title="A receber" value={incoming} />
+        </section>
+        {/* A lista simulada fica acima do gráfico e não altera o extrato até a confirmação. */}
+        <FinancialCharts entries={visibleEntries} />
+        <div className="overview-columns">
+          <section className="panel">
+            <h2 className="panel-title">Despesas por categoria</h2>
+            {expenseCategories.length ? expenseCategories.slice(0, 7).map(([label, value]) => <div className="category-row" key={label}>
+              <span>{label}</span>
+              <strong>{money.format(value)}</strong>
+            </div>) : <p className="panel-description">Nenhum lançamento neste filtro.</p>}
+          </section>
+          <section className="panel">
+            <div className="panel-heading">
+              <div>
+                <h2 className="panel-title">Próximos compromissos</h2>
+                <p className="panel-description">Contas pendentes no período selecionado.</p>
+              </div>
+              <button className="button button-secondary" type="button" onClick={() => setTab('entries')}>Ver todos</button>
             </div>
-          </article>;
-        })}
-        </div>{!cards.length && <p className="panel-description">Nenhum cartão cadastrado.</p>}</section>
-    {(canCreate || canEdit) && <section className="panel">
-      <div className="panel-heading">
-        <div>
-          <h2 className="panel-title">{editingCard ? 'Editar cartão' : 'Cadastrar cartão'}</h2>
-          <p className="panel-description">Use apenas os últimos quatro dígitos.</p>
-          </div>{editingCard && <button className="button button-secondary" type="button" onClick={() => setEditingCard(null)}>Cancelar</button>}</div>
-      <form className="form-grid form-grid-expanded" onSubmit={saveCard}>
-        <Field label="Apelido">
-          <input className="input" value={cardName} onChange={(event) => setCardName(event.target.value)} required />
+            {visibleEntries.filter((item) => item.status === 'PENDING').slice(0, 5).map((item) => <div className="category-row" key={item.id}>
+              <span>{item.description}<small className="muted-block">Vencimento: {formatDate(item.dueDate)}</small>
+              </span>
+              <strong>{money.format(item.amount)}</strong>
+            </div>)}
+          </section>
+        </div>
+      </>}
+
+      {tab === 'entries' && <>
+        <section className="panel category-shortcuts">
+          <div className="panel-heading">
+            <div>
+              <h2 className="panel-title">Categorias do perfil selecionado</h2>
+              <p className="panel-description">No modo Geral são exibidas todas; em PF ou PJ, somente as categorias daquele perfil.</p>
+            </div>
+            <button className="button button-secondary" type="button" onClick={() => setTab('categories')}>Gerenciar categorias</button>
+          </div>
+          <div className="category-chip-list">{categories.filter((item) => item.entity === 'ALL' || item.entity === entity).map((item) => <button className="category-chip" type="button" key={item.id} onClick={() => setCategoryFilter(item.name)}>{item.name}</button>)}</div>
+        </section>
+        <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2 className="panel-title">Todos os lançamentos</h2>
+              <p className="panel-description">Ordene pelas colunas. Clique na situação para marcar pago ou pendente.</p>
+            </div>
+            <div className="panel-actions">
+              <button className="button button-secondary" type="button" onClick={() => void refresh()}>Atualizar</button>
+              <button className="button button-primary" type="button" onClick={() => { resetForm(); setEntryModalOpen(true); }}>+ Novo lançamento</button>
+            </div>
+          </div>
+          <EntryTable entries={visibleEntries} onEdit={canEdit ? startEdit : undefined} onDelete={canDelete ? setDeleteTarget : undefined} onStatusChange={canEdit ? (item) => void changeEntryStatus(item) : undefined} sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
+        </section>
+      </>}
+
+      {tab === 'cards' && <>
+        <section className="panel">
+          <h2 className="panel-title">Cartões cadastrados</h2>
+          <div className="card-grid">
+            {cards.map((card) => {
+              const purchases = card.paymentType === 'CREDIT' ? entries.filter((item) => item.cardId === card.id && item.type === 'EXPENSE' && item.purpose !== 'CARD_PAYMENT').reduce((sum, item) => sum + item.amount, 0) : 0;
+              const payments = entries.filter((item) => item.cardId === card.id && item.purpose === 'CARD_PAYMENT' && item.status === 'PAID').reduce((sum, item) => sum + item.amount, 0);
+              const debt = Math.max(0, purchases - payments);
+              return <article className="payment-card" key={card.id}>
+                <span className="eyebrow">{card.paymentType === 'CREDIT' ? 'Crédito' : 'Débito'} · {card.brand || 'Cartão'}</span>
+                <h3>{card.name}</h3>
+                <p>{card.paymentType === 'CREDIT' ? `Fatura estimada: ${money.format(debt)}` : 'Cartão de débito'}</p>
+                <strong>{card.paymentType === 'CREDIT' && card.creditLimit != null ? `Disponível: ${money.format(Math.max(0, card.creditLimit - debt))}` : '\u2212'}</strong>
+                <small>{card.lastFour ? `Final ${card.lastFour}` : 'Final não informado'}</small>
+                <div className="row-actions">
+                  {canEdit && <button className="button button-secondary button-compact" type="button" onClick={() => editCard(card)}>Editar</button>}
+                  {canDelete && <button className="button button-danger button-compact" type="button" onClick={() => void deleteCard(card)}>Excluir</button>}
+                </div>
+              </article>;
+            })}
+          </div>{!cards.length && <p className="panel-description">Nenhum cartão cadastrado.</p>}</section>
+        {(canCreate || canEdit) && <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2 className="panel-title">{editingCard ? 'Editar cartão' : 'Cadastrar cartão'}</h2>
+              <p className="panel-description">Use apenas os últimos quatro dígitos.</p>
+            </div>{editingCard && <button className="button button-secondary" type="button" onClick={() => setEditingCard(null)}>Cancelar</button>}</div>
+          <form className="form-grid form-grid-expanded" onSubmit={saveCard}>
+            <Field label="Apelido">
+              <input className="input" value={cardName} onChange={(event) => setCardName(event.target.value)} required />
             </Field>
-          <Field label="Tipo">
-            <select className="select" value={cardPaymentType} onChange={(event) => setCardPaymentType(event.target.value as 'CREDIT' | 'DEBIT')}>
-              <option value="CREDIT">Crédito</option>
-              <option value="DEBIT">Débito</option>
+            <Field label="Tipo">
+              <select className="select" value={cardPaymentType} onChange={(event) => setCardPaymentType(event.target.value as 'CREDIT' | 'DEBIT')}>
+                <option value="CREDIT">Crédito</option>
+                <option value="DEBIT">Débito</option>
               </select>
             </Field>
-          <Field label="Bandeira">
-            <input className="input" value={cardBrand} onChange={(event) => setCardBrand(event.target.value)} />
-              </Field>
+            <Field label="Bandeira">
+              <input className="input" value={cardBrand} onChange={(event) => setCardBrand(event.target.value)} />
+            </Field>
             <Field label="Últimos 4 dígitos">
               <input className="input" value={lastFour} onChange={(event) => setLastFour(event.target.value.replace(/\D/g, '').slice(0, 4))} maxLength={4} />
-                </Field>
-              {cardPaymentType === 'CREDIT' && <>
+            </Field>
+            {cardPaymentType === 'CREDIT' && <>
               <Field label="Limite (R$)">
                 <input className="input" type="number" min="0" step="0.01" value={creditLimit} onChange={(event) => setCreditLimit(event.target.value)} />
-                  </Field>
-                <Field label="Dia de fechamento">
-                  <input className="input" type="number" min="1" max="31" value={closingDay} onChange={(event) => setClosingDay(event.target.value)} />
-                    </Field>
-                  <Field label="Dia de vencimento">
-                    <input className="input" type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} />
-                      </Field>
-                    </>}
-                    <button className="button button-primary" disabled={busy}>{editingCard ? 'Salvar cartão' : '+ Cadastrar cartão'}</button>
-                    </form>
-                  </section>}
-                </>}
+              </Field>
+              <Field label="Dia de fechamento">
+                <input className="input" type="number" min="1" max="31" value={closingDay} onChange={(event) => setClosingDay(event.target.value)} />
+              </Field>
+              <Field label="Dia de vencimento">
+                <input className="input" type="number" min="1" max="31" value={cardDueDay} onChange={(event) => setCardDueDay(event.target.value)} />
+              </Field>
+            </>}
+            <button className="button button-primary" disabled={busy}>{editingCard ? 'Salvar cartão' : '+ Cadastrar cartão'}</button>
+          </form>
+        </section>}
+      </>}
 
-                {tab === 'institutions' && <>
-                <section className="panel">
-                  <h2 className="panel-title">Bancos e contas</h2>
-                  <div className="table-wrap">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Instituição</th>
-                          <th>Conta</th>
-                          <th>Tipo</th>
-                          <th>Perfil</th>
-                          <th className="table-number">Saldo</th>
-                          <th>Ações</th>
-                          </tr>
-                        </thead>
-                      <tbody>
-                        {accountBalances.map((account) => <tr key={account.id}>
-                          <td>{account.institution}</td>
-                          <td>{account.name}</td>
-                          <td>{account.accountType}</td>
-                          <td>{account.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</td>
-                          <td className="table-number">{money.format(account.balance)}</td>
-                          <td>
-                            <div className="row-actions">
-                              {canEdit && <button className="button button-secondary button-compact" type="button" onClick={() => editAccount(account)}>Editar</button>}
-                              {canDelete && <button className="button button-danger button-compact" type="button" onClick={() => void deleteAccount(account)}>Excluir</button>}
-                              </div>
-                            </td>
-                          </tr>)}
-                        {!accountBalances.length && <tr>
-                          <td className="empty-state" colSpan={6}>Nenhuma conta cadastrada.</td>
-                          </tr>}
-                        </tbody>
-                      </table>
+      {tab === 'institutions' && <>
+        <section className="panel">
+          <h2 className="panel-title">Bancos e contas</h2>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Instituição</th>
+                  <th>Conta</th>
+                  <th>Tipo</th>
+                  <th>Perfil</th>
+                  <th className="table-number">Saldo</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {accountBalances.map((account) => <tr key={account.id}>
+                  <td>{account.institution}</td>
+                  <td>{account.name}</td>
+                  <td>{account.accountType}</td>
+                  <td>{account.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</td>
+                  <td className="table-number">{money.format(account.balance)}</td>
+                  <td>
+                    <div className="row-actions">
+                      {canEdit && <button className="button button-secondary button-compact" type="button" onClick={() => editAccount(account)}>Editar</button>}
+                      {canDelete && <button className="button button-danger button-compact" type="button" onClick={() => void deleteAccount(account)}>Excluir</button>}
                     </div>
-                  </section>
-                {(canCreate || canEdit) && <section className="panel">
-                  <h2 className="panel-title">{editingAccount ? 'Editar conta' : 'Adicionar banco ou instituição'}</h2>{editingAccount && <button className="button button-secondary" type="button" onClick={() => setEditingAccount(null)}>Cancelar edição</button>}
-                  <form className="form-grid form-grid-expanded" onSubmit={saveAccount}>
-                    <Field label="Apelido da conta">
-                      <input className="input" value={accountName} onChange={(event) => setAccountName(event.target.value)} required />
-                        </Field>
-                      <Field label="Banco / instituição">
-                        <input className="input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} required />
-                          </Field>
-                        <Field label="Tipo">
-                          <select className="select" value={accountType} onChange={(event) => setAccountType(event.target.value)}>
-                            <option value="CHECKING">Corrente</option>
-                            <option value="SAVINGS">Poupança</option>
-                            <option value="CASH">Dinheiro</option>
-                            <option value="WALLET">Carteira digital</option>
-                            <option value="OTHER">Outro</option>
-                            </select>
-                          </Field>
-                        <Field label="Perfil">
-                          <select className="select" value={accountEntity} onChange={(event) => setAccountEntity(event.target.value as EntityType)}>
-                            <option value="PHYSICAL">PF</option>
-                            <option value="LEGAL">PJ</option>
-                            </select>
-                          </Field>
-                        <Field label="Saldo inicial">
-                          <input className="input" type="number" step="0.01" value={initialBalance} onChange={(event) => setInitialBalance(event.target.value)} />
-                            </Field>
-                          <button className="button button-primary" disabled={busy}>{editingAccount ? 'Salvar conta' : '+ Adicionar conta'}</button>
-                          </form>
-                        </section>}
-                      </>}
+                  </td>
+                </tr>)}
+                {!accountBalances.length && <tr>
+                  <td className="empty-state" colSpan={6}>Nenhuma conta cadastrada.</td>
+                </tr>}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        {(canCreate || canEdit) && <section className="panel">
+          <h2 className="panel-title">{editingAccount ? 'Editar conta' : 'Adicionar banco ou instituição'}</h2>{editingAccount && <button className="button button-secondary" type="button" onClick={() => setEditingAccount(null)}>Cancelar edição</button>}
+          <form className="form-grid form-grid-expanded" onSubmit={saveAccount}>
+            <Field label="Apelido da conta">
+              <input className="input" value={accountName} onChange={(event) => setAccountName(event.target.value)} required />
+            </Field>
+            <Field label="Banco / instituição">
+              <input className="input" value={institutionName} onChange={(event) => setInstitutionName(event.target.value)} required />
+            </Field>
+            <Field label="Tipo">
+              <select className="select" value={accountType} onChange={(event) => setAccountType(event.target.value)}>
+                <option value="CHECKING">Corrente</option>
+                <option value="SAVINGS">Poupança</option>
+                <option value="CASH">Dinheiro</option>
+                <option value="WALLET">Carteira digital</option>
+                <option value="OTHER">Outro</option>
+              </select>
+            </Field>
+            <Field label="Perfil">
+              <select className="select" value={accountEntity} onChange={(event) => setAccountEntity(event.target.value as EntityType)}>
+                <option value="PHYSICAL">PF</option>
+                <option value="LEGAL">PJ</option>
+              </select>
+            </Field>
+            <Field label="Saldo inicial">
+              <input className="input" type="number" step="0.01" value={initialBalance} onChange={(event) => setInitialBalance(event.target.value)} />
+            </Field>
+            <button className="button button-primary" disabled={busy}>{editingAccount ? 'Salvar conta' : '+ Adicionar conta'}</button>
+          </form>
+        </section>}
+      </>}
 
-                      {tab === 'categories' && <>
-                      <section className="panel category-scope-panel">
-                        <Field label="Categorias visíveis">
-                          <select className="select" value={categoryEntity} onChange={(event) => setCategoryEntity(event.target.value as 'ALL' | EntityType)}>
-                            <option value="ALL">Todos os perfis</option>
-                            <option value="PHYSICAL">Somente PF</option>
-                            <option value="LEGAL">Somente PJ</option>
-                            </select>
-                          </Field>
-                        <p className="panel-description">No filtro Geral, o painel reúne categorias de todos os perfis.</p>
-                        </section>
-                      {(canCreate || canEdit) && <section className="panel">
-                        <div className="panel-heading">
-                          <div>
-                            <h2 className="panel-title">{editingCategory ? 'Editar categoria' : 'Criar categoria'}</h2>
-                            <p className="panel-description">Renomear também atualiza os lançamentos.</p>
-                            </div>{editingCategory && <button className="button button-secondary" type="button" onClick={() => { setEditingCategory(null); setCategoryName(''); setCategoryDescription(''); }}>Cancelar</button>}</div>
-                        <form className="form-grid form-grid-expanded" onSubmit={saveCategory}>
-                          <Field label="Nome">
-                            <input className="input" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} required />
-                              </Field>
-                            <Field label="Perfil">
-                              <select className="select" value={categoryEntity} onChange={(event) => setCategoryEntity(event.target.value as 'ALL' | EntityType)}>
-                                <option value="ALL">Todos</option>
-                                <option value="PHYSICAL">PF</option>
-                                <option value="LEGAL">PJ</option>
-                                </select>
-                              </Field>
-                            <Field label="Descrição">
-                              <input className="input" value={categoryDescription} onChange={(event) => setCategoryDescription(event.target.value)} />
-                                </Field>
-                              <button className="button button-primary" disabled={busy}>{editingCategory ? 'Salvar categoria' : '+ Criar categoria'}</button>
-                              </form>
-                            </section>}
-                          <section className="panel">
-                            <div className="panel-heading">
-                              <h2 className="panel-title">Categorias cadastradas</h2>
-                              <input className="input category-search" placeholder="Buscar categoria" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} />
-                                </div>
-                              <div className="table-wrap">
-                                <table className="data-table">
-                                  <thead>
-                                    <tr>
-                                      <th>Categoria</th>
-                                      <th>Descrição</th>
-                                      <th>Perfil</th>
-                                      <th>Ações</th>
-                                      </tr>
-                                    </thead>
-                                  <tbody>
-                                    {visibleCategories.map((item) => <tr key={item.id}>
-                                      <td>{item.name}</td>
-                                      <td>{item.description || '\u2212'}</td>
-                                      <td>{item.entity === 'ALL' ? 'Todos' : item.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</td>
-                                      <td>
-                                        <div className="row-actions">
-                                          <button className="button button-secondary button-compact" type="button" onClick={() => { setEditingCategory(item); setCategoryName(item.name); setCategoryDescription(item.description); setCategoryEntity(item.entity); }}>Editar</button>
-                                          <button className="button button-danger button-compact" type="button" onClick={() => void deleteCategory(item)}>Excluir</button>
-                                          </div>
-                                        </td>
-                                      </tr>)}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </section>
-                            </>}
+      {tab === 'categories' && <>
+        <section className="panel category-scope-panel">
+          <Field label="Categorias visíveis">
+            <select className="select" value={categoryEntity} onChange={(event) => setCategoryEntity(event.target.value as 'ALL' | EntityType)}>
+              <option value="ALL">Todos os perfis</option>
+              <option value="PHYSICAL">Somente PF</option>
+              <option value="LEGAL">Somente PJ</option>
+            </select>
+          </Field>
+          <p className="panel-description">No filtro Geral, o painel reúne categorias de todos os perfis.</p>
+        </section>
+        {(canCreate || canEdit) && <section className="panel">
+          <div className="panel-heading">
+            <div>
+              <h2 className="panel-title">{editingCategory ? 'Editar categoria' : 'Criar categoria'}</h2>
+              <p className="panel-description">Renomear também atualiza os lançamentos.</p>
+            </div>{editingCategory && <button className="button button-secondary" type="button" onClick={() => { setEditingCategory(null); setCategoryName(''); setCategoryDescription(''); }}>Cancelar</button>}</div>
+          <form className="form-grid form-grid-expanded" onSubmit={saveCategory}>
+            <Field label="Nome">
+              <input className="input" value={categoryName} onChange={(event) => setCategoryName(event.target.value)} required />
+            </Field>
+            <Field label="Perfil">
+              <select className="select" value={categoryEntity} onChange={(event) => setCategoryEntity(event.target.value as 'ALL' | EntityType)}>
+                <option value="ALL">Todos</option>
+                <option value="PHYSICAL">PF</option>
+                <option value="LEGAL">PJ</option>
+              </select>
+            </Field>
+            <Field label="Descrição">
+              <input className="input" value={categoryDescription} onChange={(event) => setCategoryDescription(event.target.value)} />
+            </Field>
+            <button className="button button-primary" disabled={busy}>{editingCategory ? 'Salvar categoria' : '+ Criar categoria'}</button>
+          </form>
+        </section>}
+        <section className="panel">
+          <div className="panel-heading">
+            <h2 className="panel-title">Categorias cadastradas</h2>
+            <input className="input category-search" placeholder="Buscar categoria" value={categorySearch} onChange={(event) => setCategorySearch(event.target.value)} />
+          </div>
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Categoria</th>
+                  <th>Descrição</th>
+                  <th>Perfil</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleCategories.map((item) => <tr key={item.id}>
+                  <td>{item.name}</td>
+                  <td>{item.description || '\u2212'}</td>
+                  <td>{item.entity === 'ALL' ? 'Todos' : item.entity === 'PHYSICAL' ? 'PF' : 'PJ'}</td>
+                  <td>
+                    <div className="row-actions">
+                      <button className="button button-secondary button-compact" type="button" onClick={() => { setEditingCategory(item); setCategoryName(item.name); setCategoryDescription(item.description); setCategoryEntity(item.entity); }}>Editar</button>
+                      <button className="button button-danger button-compact" type="button" onClick={() => void deleteCategory(item)}>Excluir</button>
+                    </div>
+                  </td>
+                </tr>)}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </>}
 
-                            {tab === 'reports' && <section className="panel report-panel">
-                              <div className="panel-heading">
-                                <div>
-                                  <h2 className="panel-title">Relatório financeiro</h2>
-                                  <p className="panel-description">Modelos editáveis em reports/models; os filtros ativos são aplicados ao visualizar.</p>
-                                  </div>
-                                </div>
-                              <div className="report-actions no-print">
-                                <Field label="Modelo HTML">
-                                  <select className="select" value={reportModelName} onChange={(event) => { const selectedName = event.target.value; setReportModelName(selectedName); void openReportPreview(selectedName); }}>
-                                    <option value="">Selecione</option>{reportModels.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</select>
-                                  </Field>
-                                <button className="button button-secondary" type="button" onClick={() => void loadReportModels()}>Atualizar modelos</button>
-                                </div>
-                              {reportPreview && <>
-                              <div className="panel-actions no-print">
-                                <button className="button button-primary" type="button" onClick={() => (document.getElementById('report-preview-frame') as HTMLIFrameElement | null)?.contentWindow?.print()}>Imprimir / salvar PDF</button>
-                                <button className="button button-secondary" type="button" onClick={() => setReportPreview('')}>Fechar prévia</button>
-                                </div>
-                              <iframe id="report-preview-frame" className="report-preview-frame" title="Pré-visualização do relatório" sandbox="allow-same-origin allow-modals" srcDoc={reportPreview} />
-                              </>}
-                              <div className="report-heading">
-                                <h2>Relatório ? {filterEntity === 'ALL' ? 'Geral' : filterEntity === 'PHYSICAL' ? 'Pessoal (PF)' : 'Empresa (PJ)'}</h2>
-                                </div>
-                              <EntryTable entries={visibleEntries} readOnly sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
-                              </section>}
+      {tab === 'reports' && <section className="panel report-panel">
+        <div className="panel-heading">
+          <div>
+            <h2 className="panel-title">Relatório financeiro</h2>
+            <p className="panel-description">Modelos editáveis em reports/models; os filtros ativos são aplicados ao visualizar.</p>
+          </div>
+        </div>
+        <div className="report-actions no-print">
+          <Field label="Modelo HTML">
+            <select className="select" value={reportModelName} onChange={(event) => { const selectedName = event.target.value; setReportModelName(selectedName); void openReportPreview(selectedName); }}>
+              <option value="">Selecione</option>{reportModels.map((model) => <option key={model.name} value={model.name}>{model.name}</option>)}</select>
+          </Field>
+          <button className="button button-secondary" type="button" onClick={() => void loadReportModels()}>Atualizar modelos</button>
+        </div>
+        {reportPreview && <>
+          <div className="panel-actions no-print">
+            <button className="button button-primary" type="button" onClick={() => (document.getElementById('report-preview-frame') as HTMLIFrameElement | null)?.contentWindow?.print()}>Imprimir / salvar PDF</button>
+            <button className="button button-secondary" type="button" onClick={() => setReportPreview('')}>Fechar prévia</button>
+          </div>
+          <iframe id="report-preview-frame" className="report-preview-frame" title="Pré-visualização do relatório" sandbox="allow-same-origin allow-modals" srcDoc={reportPreview} />
+        </>}
+        <div className="report-heading">
+          <h2>Relatório ? {filterEntity === 'ALL' ? 'Geral' : filterEntity === 'PHYSICAL' ? 'Pessoal (PF)' : 'Empresa (PJ)'}</h2>
+        </div>
+        <EntryTable entries={visibleEntries} readOnly sortKey={sortKey} sortDirection={sortDirection} onSort={sortBy} />
+      </section>}
 
-                            {tab === 'settings' && <div className="settings-layout">
-                            <section className="panel settings-panel">
-                              <h2 className="panel-title">Instâncias financeiras</h2>
-                              <p className="panel-description">Crie um conjunto separado para cada finança. Os dados só ficam visíveis para quem tiver acesso a essa instância.</p>
-                              <form className="finance-create-grid" onSubmit={createFinance}><Field label="Nome da instância"><input className="input" maxLength={80} value={newFinanceName} onChange={(event) => setNewFinanceName(event.target.value)} placeholder="Ex.: Casa, Loja Centro" required /></Field><Field label="Tipo"><select className="select" value={newFinanceEntity} onChange={(event) => setNewFinanceEntity(event.target.value as EntityType)}><option value="PHYSICAL">Pessoal (PF)</option><option value="LEGAL">Empresa (PJ)</option></select></Field><button className="button button-primary" type="submit" disabled={busy}>Criar instância</button></form>
-                              {activeFinance && activeFinance.ownerId === session?.user.id && <div className="finance-sharing"><h3 className="settings-section-title">Compartilhar “{activeFinance.name}”</h3><p className="panel-description">Informe o e-mail de uma conta liberada e marque as ações que ela poderá fazer nesta instância.</p><form className="finance-share-grid" onSubmit={shareFinance}><Field label="E-mail do usuário"><input className="input" type="email" value={shareEmail} onChange={(event) => setShareEmail(event.target.value)} required /></Field><div className="finance-share-permissions">{(['view', 'create', 'edit', 'delete'] as const).map((permission) => <label className="check-field" key={permission}><input type="checkbox" checked={sharePermissions.includes(permission)} disabled={permission === 'view'} onChange={(event) => setSharePermissions((current) => event.target.checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission === 'view' ? 'Visualizar' : permission === 'create' ? 'Criar' : permission === 'edit' ? 'Editar' : 'Excluir'}</label>)}</div><button className="button button-secondary" type="submit">Salvar compartilhamento</button></form><div className="finance-member-list">{financeMembers.map((member) => <div className="finance-member-row" key={member.id}><div><strong>{member.name}</strong><small className="muted-block">{member.email} · {member.permissions.map((permission) => permission === 'view' ? 'visualizar' : permission === 'create' ? 'criar' : permission === 'edit' ? 'editar' : 'excluir').join(', ')}</small></div>{member.id !== activeFinance.ownerId && <button className="button button-danger button-compact" type="button" onClick={() => void removeFinanceMember(member.id)}>Remover acesso</button>}</div>)}</div></div>}
-                            </section>
-                            <section className="panel settings-panel">
-                              <div className="settings-heading"><div><h2 className="panel-title">Backup e restauração</h2><p className="panel-description">Escolha os dados que deseja salvar ou recuperar. Se ainda não existir uma instância, a restauração criará uma com os dados do backup.</p></div></div>
-                              <div className="settings-section"><h3 className="settings-section-title">Dados incluídos</h3><div className="backup-data-grid">{([['transactions', 'Lançamentos'], ['cards', 'Cartões'], ['accounts', 'Bancos e contas'], ['categories', 'Categorias'], ['shoppingLists', 'Listas de compras']] as const).map(([key, label]) => <label className="backup-option" key={key}><input type="checkbox" checked={backupTypes.includes(key)} onChange={(event) => { setBackupTypes((current) => event.target.checked ? [...current, key] : current.filter((item) => item !== key)); setBackupSettingsSaved(false); }} /><span>{label}</span></label>)}</div></div>
-                              <div className="settings-section"><h3 className="settings-section-title">Criar ou restaurar backup</h3><div className="backup-action-grid"><button className="button button-primary" type="button" disabled={!backupTypes.length || busy} onClick={() => void createBackup().catch((cause) => setBackupMessage(cause.message))}>Baixar backup no computador</button><Field label="Arquivo para restauracao"><input className="input backup-file-input" type="file" accept="application/json,.json" onChange={(event) => { setRestoreFile(event.target.files?.[0] || null); setSelectedServerBackup(''); }} /></Field><button className="button button-secondary" type="button" disabled={(!restoreFile && !selectedServerBackup) || !backupTypes.length || busy} onClick={() => void (selectedServerBackup ? restoreServerBackup() : restoreBackup())}>Restaurar dados selecionados</button></div>{session?.user.role === 'ADMIN' && <div className="backup-server-picker"><Field label="Backup automatico salvo no servidor"><select className="select" value={selectedServerBackup} onChange={(event) => { setSelectedServerBackup(event.target.value); if (event.target.value) setRestoreFile(null); }}><option value="">Selecione um backup salvo...</option>{serverBackupFiles.map((file) => <option key={file.name} value={file.name}>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(file.modifiedAt))} - {file.name}</option>)}</select></Field><button className="button button-secondary" type="button" onClick={() => void loadServerBackupFiles()}>Atualizar lista de backups</button></div>}</div>
-                              {session?.user.role === 'ADMIN' ? <div className="settings-section"><h3 className="settings-section-title">Backup automatico no servidor</h3><p className="panel-description settings-help">Informe um caminho absoluto no servidor ou container, como /bkp ou /var/bkp. O processo precisa ter permissao para gravar.</p><div className="backup-schedule-grid"><Field label="Criar backup a cada"><select className="select" value={backupInterval} onChange={(event) => { setBackupInterval(event.target.value); setBackupSettingsSaved(false); }}><option value="1">1 dia</option><option value="7">7 dias</option><option value="30">30 dias</option></select></Field><Field label="Manter ate"><input className="input" type="number" min="1" max="100" value={backupRetention} onChange={(event) => { setBackupRetention(event.target.value); setBackupSettingsSaved(false); }} /></Field><Field label="Caminho absoluto no servidor"><input className="input" type="text" value={backupServerPath} placeholder="/bkp" onChange={(event) => { setBackupServerPath(event.target.value); setBackupSettingsSaved(false); setSelectedServerBackup(''); setServerBackupFiles([]); }} /></Field></div><div className="backup-config-actions"><button className="button button-primary" type="button" onClick={saveBackupSettings}>Salvar configuracao</button><button className="button button-secondary" type="button" disabled={!backupSettingsSaved} onClick={() => void saveServerBackup().catch((cause) => setBackupMessage(cause.message))}>Gravar backup agora</button></div>{backupMessage && <p className="backup-status" role="status">{backupMessage}</p>}<p className="backup-path-help">No Docker Compose, /bkp usa volume persistente. O backup automatico roda conforme a frequencia salva enquanto o painel estiver aberto.</p></div> : <div className="settings-section"><h3 className="settings-section-title">Backup automatico no servidor</h3><p className="panel-description">A gravacao em caminhos do servidor fica disponivel para administradores. Voce ainda pode baixar backups manualmente.</p></div>}
-                              {backupMessage && <p className="backup-status" role="status">{backupMessage}</p>}
-                            </section>
-                            {session?.user.role === 'ADMIN' && <section className="panel">
-                              <h2 className="panel-title">Usuários e permissões</h2>
-                              <p className="panel-description">Novas contas começam bloqueadas. Libere somente as ações necessárias.</p>
-                              <div className="panel-actions"><Link className="button button-secondary" href="/dashboard/logs">Ver logs do servidor</Link></div>
-                              {adminUsers.map((user) => <div className="user-permission-row" key={user.id}>
-                                <div>
-                                  <strong>{user.name}</strong>
-                                  <small className="muted-block">{user.email}</small>
-                                  </div>
-                                <Field label="Acesso">
-                                  <select className="select" value={user.role} onChange={(event) => setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, role: event.target.value as AdminUser['role'] } : item))}>
-                                    <option value="BLOCKED">Bloqueado</option>
-                                    <option value="USER">Personalizado</option>
-                                    <option value="ADMIN">Administrador</option>
-                                    </select>
-                                  </Field>{(['view', 'create', 'edit', 'delete'] as const).map((permission) => <label className="check-field" key={permission}>
-                                  <input type="checkbox" checked={JSON.parse(user.permissions || '[]').includes(permission)} disabled={user.role !== 'USER'} onChange={(event) => { const old = JSON.parse(user.permissions || '[]') as string[]; const next = event.target.checked ? [...old, permission] : old.filter((item) => item !== permission); setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, permissions: JSON.stringify(next) } : item)); }} />{permission === 'view' ? 'Visualizar' : permission === 'create' ? 'Criar' : permission === 'edit' ? 'Editar' : 'Excluir'}</label>)}<button className="button button-secondary" type="button" onClick={() => void saveAdminUser(user)}>Salvar acesso</button>
-                                  </div>)}<p className="panel-description">Admin pelo terminal: <code>npm run admin:grant -- email@exemplo.com</code>
-                                  </p>
-                                </section>}
-                            </div>}
+      {tab === 'settings' && <div className="settings-layout">
+        <section className="panel settings-panel">
+          <h2 className="panel-title">Instâncias financeiras</h2>
+          <p className="panel-description">Crie um conjunto separado para cada finança. Os dados só ficam visíveis para quem tiver acesso a essa instância.</p>
+          <form className="finance-create-grid" onSubmit={createFinance}><Field label="Nome da instância"><input className="input" maxLength={80} value={newFinanceName} onChange={(event) => setNewFinanceName(event.target.value)} placeholder="Ex.: Casa, Loja Centro" required /></Field><Field label="Tipo"><select className="select" value={newFinanceEntity} onChange={(event) => setNewFinanceEntity(event.target.value as EntityType)}><option value="PHYSICAL">Pessoal (PF)</option><option value="LEGAL">Empresa (PJ)</option></select></Field><button className="button button-primary" type="submit" disabled={busy}>Criar instância</button></form>
+          {activeFinance && activeFinance.ownerId === session?.user.id && <div className="finance-sharing"><h3 className="settings-section-title">Compartilhar “{activeFinance.name}”</h3><p className="panel-description">Informe o e-mail de uma conta liberada e marque as ações que ela poderá fazer nesta instância.</p><form className="finance-share-grid" onSubmit={shareFinance}><Field label="E-mail do usuário"><input className="input" type="email" value={shareEmail} onChange={(event) => setShareEmail(event.target.value)} required /></Field><div className="finance-share-permissions">{(['view', 'create', 'edit', 'delete'] as const).map((permission) => <label className="check-field" key={permission}><input type="checkbox" checked={sharePermissions.includes(permission)} disabled={permission === 'view'} onChange={(event) => setSharePermissions((current) => event.target.checked ? [...current, permission] : current.filter((item) => item !== permission))} />{permission === 'view' ? 'Visualizar' : permission === 'create' ? 'Criar' : permission === 'edit' ? 'Editar' : 'Excluir'}</label>)}</div><button className="button button-secondary" type="submit">Salvar compartilhamento</button></form><div className="finance-member-list">{financeMembers.map((member) => <div className="finance-member-row" key={member.id}><div><strong>{member.name}</strong><small className="muted-block">{member.email} · {member.permissions.map((permission) => permission === 'view' ? 'visualizar' : permission === 'create' ? 'criar' : permission === 'edit' ? 'editar' : 'excluir').join(', ')}</small></div>{member.id !== activeFinance.ownerId && <button className="button button-danger button-compact" type="button" onClick={() => void removeFinanceMember(member.id)}>Remover acesso</button>}</div>)}</div></div>}
+        </section>
+        <section className="panel settings-panel">
+          <div className="settings-heading"><div><h2 className="panel-title">Backup e restauração</h2><p className="panel-description">Escolha os dados que deseja salvar ou recuperar. Se ainda não existir uma instância, a restauração criará uma com os dados do backup.</p></div></div>
+          <div className="settings-section"><h3 className="settings-section-title">Dados incluídos</h3><div className="backup-data-grid">{([['transactions', 'Lançamentos'], ['cards', 'Cartões'], ['accounts', 'Bancos e contas'], ['categories', 'Categorias'], ['shoppingLists', 'Listas de compras']] as const).map(([key, label]) => <label className="backup-option" key={key}><input type="checkbox" checked={backupTypes.includes(key)} onChange={(event) => { setBackupTypes((current) => event.target.checked ? [...current, key] : current.filter((item) => item !== key)); setBackupSettingsSaved(false); }} /><span>{label}</span></label>)}</div></div>
+          <div className="settings-section"><h3 className="settings-section-title">Criar ou restaurar backup</h3><div className="backup-action-grid"><button className="button button-primary" type="button" disabled={!backupTypes.length || busy} onClick={() => void createBackup().catch((cause) => setBackupMessage(cause.message))}>Baixar backup no computador</button><Field label="Arquivo para restauracao"><input className="input backup-file-input" type="file" accept="application/json,.json" onChange={(event) => { setRestoreFile(event.target.files?.[0] || null); setSelectedServerBackup(''); }} /></Field><button className="button button-secondary" type="button" disabled={(!restoreFile && !selectedServerBackup) || !backupTypes.length || busy} onClick={() => void (selectedServerBackup ? restoreServerBackup() : restoreBackup())}>Restaurar dados selecionados</button></div>{session?.user.role === 'ADMIN' && <div className="backup-server-picker"><Field label="Backup automatico salvo no servidor"><select className="select" value={selectedServerBackup} onChange={(event) => { setSelectedServerBackup(event.target.value); if (event.target.value) setRestoreFile(null); }}><option value="">Selecione um backup salvo...</option>{serverBackupFiles.map((file) => <option key={file.name} value={file.name}>{new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(file.modifiedAt))} - {file.name}</option>)}</select></Field><button className="button button-secondary" type="button" onClick={() => void loadServerBackupFiles()}>Atualizar lista de backups</button></div>}</div>
+          {session?.user.role === 'ADMIN' ? <div className="settings-section"><h3 className="settings-section-title">Backup automatico no servidor</h3><p className="panel-description settings-help">Informe um caminho absoluto no servidor ou container, como /bkp ou /var/bkp. O processo precisa ter permissao para gravar.</p><div className="backup-schedule-grid"><Field label="Criar backup a cada"><select className="select" value={backupInterval} onChange={(event) => { setBackupInterval(event.target.value); setBackupSettingsSaved(false); }}><option value="1">1 dia</option><option value="7">7 dias</option><option value="30">30 dias</option></select></Field><Field label="Manter ate"><input className="input" type="number" min="1" max="100" value={backupRetention} onChange={(event) => { setBackupRetention(event.target.value); setBackupSettingsSaved(false); }} /></Field><Field label="Caminho absoluto no servidor"><input className="input" type="text" value={backupServerPath} placeholder="/bkp" onChange={(event) => { setBackupServerPath(event.target.value); setBackupSettingsSaved(false); setSelectedServerBackup(''); setServerBackupFiles([]); }} /></Field></div><div className="backup-config-actions"><button className="button button-primary" type="button" onClick={saveBackupSettings}>Salvar configuracao</button><button className="button button-secondary" type="button" disabled={!backupSettingsSaved} onClick={() => void saveServerBackup().catch((cause) => setBackupMessage(cause.message))}>Gravar backup agora</button></div>{backupMessage && <p className="backup-status" role="status">{backupMessage}</p>}<p className="backup-path-help">No Docker Compose, /bkp usa volume persistente. O backup automatico roda conforme a frequencia salva enquanto o painel estiver aberto.</p></div> : <div className="settings-section"><h3 className="settings-section-title">Backup automatico no servidor</h3><p className="panel-description">A gravacao em caminhos do servidor fica disponivel para administradores. Voce ainda pode baixar backups manualmente.</p></div>}
+          {backupMessage && <p className="backup-status" role="status">{backupMessage}</p>}
+        </section>
+        {session?.user.role === 'ADMIN' && <section className="panel">
+          <h2 className="panel-title">Usuários e permissões</h2>
+          <p className="panel-description">Novas contas começam bloqueadas. Libere somente as ações necessárias.</p>
+          <div className="panel-actions"><Link className="button button-secondary" href="/dashboard/logs">Ver logs do servidor</Link></div>
+          {adminUsers.map((user) => <div className="user-permission-row" key={user.id}>
+            <div>
+              <strong>{user.name}</strong>
+              <small className="muted-block">{user.email}</small>
+            </div>
+            <Field label="Acesso">
+              <select className="select" value={user.role} onChange={(event) => setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, role: event.target.value as AdminUser['role'] } : item))}>
+                <option value="BLOCKED">Bloqueado</option>
+                <option value="USER">Personalizado</option>
+                <option value="ADMIN">Administrador</option>
+              </select>
+            </Field>{(['view', 'create', 'edit', 'delete'] as const).map((permission) => <label className="check-field" key={permission}>
+              <input type="checkbox" checked={JSON.parse(user.permissions || '[]').includes(permission)} disabled={user.role !== 'USER'} onChange={(event) => { const old = JSON.parse(user.permissions || '[]') as string[]; const next = event.target.checked ? [...old, permission] : old.filter((item) => item !== permission); setAdminUsers((current) => current.map((item) => item.id === user.id ? { ...item, permissions: JSON.stringify(next) } : item)); }} />{permission === 'view' ? 'Visualizar' : permission === 'create' ? 'Criar' : permission === 'edit' ? 'Editar' : 'Excluir'}</label>)}<button className="button button-secondary" type="button" onClick={() => void saveAdminUser(user)}>Salvar acesso</button>
+          </div>)}<p className="panel-description">Admin pelo terminal: <code>npm run admin:grant -- email@exemplo.com</code>
+          </p>
+        </section>}
+      </div>}
 
-                              {entryModalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setEntryModalOpen(false); resetForm(); } }}>
-                                <section className="modal-card entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
-                                  <div className="panel-heading">
-                                    <div>
-                                      <h2 className="panel-title" id="entry-modal-title">{editing ? 'Editar lançamento' : 'Novo lançamento'}</h2>
-                                      <p className="panel-description">Lançamento, origem e finalidade no mesmo formulário.</p>
-                                      </div>
-                                    <button className="button button-secondary" type="button" onClick={() => { setEntryModalOpen(false); resetForm(); }}>Fechar</button>
-                                    </div>
-                                  <form className="form-grid form-grid-expanded" onSubmit={saveEntry}>
-                                    <Field label="Descrição">
-                                      <input className="input" maxLength={120} value={description} onChange={(event) => setDescription(event.target.value)} required />
-                                        </Field>
-                                      <Field label="Valor (R$)">
-                                        <input className="input" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required />
-                                          </Field>
-                                        <Field label="Tipo">
-                                          <select className="select" value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
-                                            <option value="EXPENSE">Despesa</option>
-                                            <option value="INCOME">Entrada</option>
-                                            </select>
-                                          </Field>
-                                        <Field label="Perfil">
-                                          <select className="select" value={entity} onChange={(event) => { setEntity(event.target.value as EntityType); setCategory('Geral'); }}>
-                                            <option value="PHYSICAL">PF</option>
-                                            <option value="LEGAL">PJ</option>
-                                            </select>
-                                          </Field>
-                                        <Field label="Categoria">
-                                          <select className="select" value={category} onChange={(event) => { setCategory(event.target.value); setShowQuickCategory(event.target.value === '__new__'); }}>
-                                            <option value="Geral">Geral</option>{entryCategories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}<option value="__new__">+ Criar categoria</option>
-                                          </select>
-                                          </Field>
-                                        <Field label="Situação">
-                                          <select className="select" value={status} onChange={(event) => setStatus(event.target.value as 'PAID' | 'PENDING')}>
-                                            <option value="PAID">Pago / recebido</option>
-                                            <option value="PENDING">Pendente</option>
-                                            </select>
-                                          </Field>
-                                        <Field label="Data">
-                                          <input className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
-                                            </Field>
-                                          <Field label="Vencimento">
-                                            <input className="input" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
-                                              </Field>
-                                            <Field label="Cartão">
-                                              <select className="select" value={cardId} onChange={(event) => setCardId(event.target.value)}>
-                                                <option value="">Sem cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}</option>)}</select>
-                                              </Field>
-                                            {!editing && <>
-                                            <Field label="Parcelas">
-                                              <select className="select" value={installments} onChange={(event) => setInstallments(event.target.value)}>{Array.from({ length: 60 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}x</option>)}</select>
-                                              </Field>
-                                            <Field label="Repetição">
-                                              <select className="select" value={recurrence} onChange={(event) => setRecurrence(event.target.value)}>
-                                                <option value="">Não se repete</option>
-                                                <option value="WEEKLY">Semanal</option>
-                                                <option value="MONTHLY">Mensal</option>
-                                                <option value="YEARLY">Anual</option>
-                                                </select>
-                                              </Field>{recurrence && <Field label="Repetir até">
-                                              <input className="input" type="date" min={date} value={recurrenceEndDate} onChange={(event) => setRecurrenceEndDate(event.target.value)} required />
-                                                </Field>}</>}
-                                              {showQuickCategory && <div className="form-section form-section-wide">
-                                                <h3>Nova categoria</h3>
-                                                <div className="form-grid">
-                                                  <Field label="Nome">
-                                                    <input className="input" value={quickCategoryName} onChange={(event) => setQuickCategoryName(event.target.value)} maxLength={60} required />
-                                                    </Field>
-                                                    <Field label="Descrição">
-                                                      <input className="input" value={quickCategoryDescription} onChange={(event) => setQuickCategoryDescription(event.target.value)} maxLength={180} />
-                                                      </Field>
-                                                      <button className="button button-secondary" type="button" onClick={() => setShowQuickCategory(false)}>Cancelar categoria</button>
-                                                      <button className="button button-secondary" type="button" onClick={() => void createQuickCategory()} disabled={busy}>Criar categoria</button>
-                                                    </div>
-                                                  </div>}
-                                                  <div className="form-section form-section-wide">
-                                                    <h3>Origem e finalidade</h3>
-                                                    <div className="form-grid form-grid-expanded">
-                                                      <Field label="Finalidade">
-                                                        <select className="select" value={purpose} onChange={(event) => setPurpose(event.target.value)}>
-                                                          <option value="STANDARD">Movimentação comum</option>
-                                                          <option value="CARD_PAYMENT">Pagamento de fatura</option>
-                                                          <option value="LOAN">Empréstimo</option>
-                                                          <option value="DONATION">Doação</option>
-                                                          <option value="SUBSCRIPTION">Assinatura</option>
-                                                          </select>
-                                                        </Field>
-                                                      <Field label="Conta / instituição">
-                                                        <select className="select" value={accountId} onChange={(event) => setAccountId(event.target.value)}>
-                                                          <option value="">Sem conta vinculada</option>{accounts.filter((account) => account.entity === entity).map((account) => <option key={account.id} value={account.id}>{account.institution} · {account.name}</option>)}</select>
-                                                        </Field>
-                                                      <Field label="Observações">
-                                                        <input className="input" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={300} />
-                                                          </Field>
-                                                        <label className="check-field">
-                                                          <input type="checkbox" checked={autoDebit} onChange={(event) => setAutoDebit(event.target.checked)} />Débito automático</label>
-                                                          <label className="check-field">
-                                                            <input type="checkbox" checked={isSubscription} onChange={(event) => setIsSubscription(event.target.checked)} />Assinatura</label>
-                                                            </div>
-                                                          </div>
-                                                        <div className="modal-actions form-section-wide">
-                                                          <button className="button button-secondary" type="button" onClick={() => { setEntryModalOpen(false); resetForm(); }}>Cancelar</button>
-                                                          <button className="button button-primary" type="submit" name="saveScope" value="single" disabled={busy}>{editing ? 'Salvar' : 'Adicionar lançamento'}</button>{editing?.recurrenceGroup && <button className="button button-primary" type="submit" name="saveScope" value="group" disabled={busy}>Salvar em grupo</button>}</div>
-                                                        </form>
-                                                      </section>
-                                                    </div>}
+      {entryModalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) { setEntryModalOpen(false); resetForm(); } }}>
+        <section className="modal-card entry-modal" role="dialog" aria-modal="true" aria-labelledby="entry-modal-title">
+          <div className="panel-heading">
+            <div>
+              <h2 className="panel-title" id="entry-modal-title">{editing ? 'Editar lançamento' : 'Novo lançamento'}</h2>
+              <p className="panel-description">Lançamento, origem e finalidade no mesmo formulário.</p>
+            </div>
+            <button className="button button-secondary" type="button" onClick={() => { setEntryModalOpen(false); resetForm(); }}>Fechar</button>
+          </div>
+          <form className="form-grid form-grid-expanded" onSubmit={saveEntry}>
+            <Field label="Descrição">
+              <input className="input" maxLength={120} value={description} onChange={(event) => setDescription(event.target.value)} required />
+            </Field>
+            <Field label="Valor (R$)">
+              <input className="input" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} required />
+            </Field>
+            <Field label="Tipo">
+              <select className="select" value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
+                <option value="EXPENSE">Despesa</option>
+                <option value="INCOME">Entrada</option>
+              </select>
+            </Field>
+            <Field label="Perfil">
+              <select className="select" value={entity} onChange={(event) => { setEntity(event.target.value as EntityType); setCategory('Geral'); }}>
+                <option value="PHYSICAL">PF</option>
+                <option value="LEGAL">PJ</option>
+              </select>
+            </Field>
+            <Field label="Categoria">
+              <select className="select" value={category} onChange={(event) => { setCategory(event.target.value); setShowQuickCategory(event.target.value === '__new__'); }}>
+                <option value="Geral">Geral</option>{entryCategories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}<option value="__new__">+ Criar categoria</option>
+              </select>
+            </Field>
+            <Field label="Situação">
+              <select className="select" value={status} onChange={(event) => setStatus(event.target.value as 'PAID' | 'PENDING')}>
+                <option value="PAID">Pago / recebido</option>
+                <option value="PENDING">Pendente</option>
+              </select>
+            </Field>
+            <Field label="Data">
+              <input className="input" type="date" value={date} onChange={(event) => setDate(event.target.value)} required />
+            </Field>
+            <Field label="Vencimento">
+              <input className="input" type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
+            </Field>
+            <Field label="Cartão">
+              <select className="select" value={cardId} onChange={(event) => setCardId(event.target.value)}>
+                <option value="">Sem cartão</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}</option>)}</select>
+            </Field>
+            {!editing && <>
+              <Field label="Parcelas">
+                <select className="select" value={installments} onChange={(event) => setInstallments(event.target.value)}>{Array.from({ length: 60 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}x</option>)}</select>
+              </Field>
+              <Field label="Repetição">
+                <select className="select" value={recurrence} onChange={(event) => setRecurrence(event.target.value)}>
+                  <option value="">Não se repete</option>
+                  <option value="WEEKLY">Semanal</option>
+                  <option value="MONTHLY">Mensal</option>
+                  <option value="YEARLY">Anual</option>
+                </select>
+              </Field>{recurrence && <Field label="Repetir até">
+                <input className="input" type="date" min={date} value={recurrenceEndDate} onChange={(event) => setRecurrenceEndDate(event.target.value)} required />
+              </Field>}</>}
+            {showQuickCategory && <div className="form-section form-section-wide">
+              <h3>Nova categoria</h3>
+              <div className="form-grid">
+                <Field label="Nome">
+                  <input className="input" value={quickCategoryName} onChange={(event) => setQuickCategoryName(event.target.value)} maxLength={60} required />
+                </Field>
+                <Field label="Descrição">
+                  <input className="input" value={quickCategoryDescription} onChange={(event) => setQuickCategoryDescription(event.target.value)} maxLength={180} />
+                </Field>
+                <button className="button button-secondary" type="button" onClick={() => setShowQuickCategory(false)}>Cancelar categoria</button>
+                <button className="button button-secondary" type="button" onClick={() => void createQuickCategory()} disabled={busy}>Criar categoria</button>
+              </div>
+            </div>}
+            <div className="form-section form-section-wide">
+              <h3>Origem e finalidade</h3>
+              <div className="form-grid form-grid-expanded">
+                <Field label="Finalidade">
+                  <select className="select" value={purpose} onChange={(event) => setPurpose(event.target.value)}>
+                    <option value="STANDARD">Movimentação comum</option>
+                    <option value="CARD_PAYMENT">Pagamento de fatura</option>
+                    <option value="LOAN">Empréstimo</option>
+                    <option value="DONATION">Doação</option>
+                    <option value="SUBSCRIPTION">Assinatura</option>
+                  </select>
+                </Field>
+                <Field label="Conta / instituição">
+                  <select className="select" value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+                    <option value="">Sem conta vinculada</option>{accounts.filter((account) => account.entity === entity).map((account) => <option key={account.id} value={account.id}>{account.institution} · {account.name}</option>)}</select>
+                </Field>
+                <Field label="Observações">
+                  <input className="input" value={notes} onChange={(event) => setNotes(event.target.value)} maxLength={300} />
+                </Field>
+                <label className="check-field">
+                  <input type="checkbox" checked={autoDebit} onChange={(event) => setAutoDebit(event.target.checked)} />Débito automático</label>
+                <label className="check-field">
+                  <input type="checkbox" checked={isSubscription} onChange={(event) => setIsSubscription(event.target.checked)} />Assinatura</label>
+              </div>
+            </div>
+            <div className="modal-actions form-section-wide">
+              <button className="button button-secondary" type="button" onClick={() => { setEntryModalOpen(false); resetForm(); }}>Cancelar</button>
+              <button className="button button-primary" type="submit" name="saveScope" value="single" disabled={busy}>{editing ? 'Salvar' : 'Adicionar lançamento'}</button>{editing?.recurrenceGroup && <button className="button button-primary" type="submit" name="saveScope" value="group" disabled={busy}>Salvar em grupo</button>}</div>
+          </form>
+        </section>
+      </div>}
 
-                                                  {deleteTarget && <div className="modal-backdrop" role="presentation">
-                                                    <section className="modal-card confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
-                                                      <h2 className="panel-title" id="delete-title">O que deseja excluir?</h2>
-                                                      <p>{deleteTarget.description} ? {money.format(deleteTarget.amount)} ? {formatDate(deleteTarget.date)}</p>
-                                                      <p>Você pode remover apenas este item ou todas as ocorrências deste grupo.</p>
-                                                      <div className="modal-actions">
-                                                        <button className="button button-secondary" type="button" onClick={() => setDeleteTarget(null)}>Cancelar</button>
-                                                        <button className="button button-danger" type="button" onClick={() => void removeEntry(deleteTarget)}>Excluir somente este</button>{deleteTarget.recurrenceGroup && <button className="button button-danger" type="button" onClick={() => void removeEntry(deleteTarget, true)}>Excluir grupo ({entries.filter((item) => item.recurrenceGroup === deleteTarget.recurrenceGroup).length})</button>}</div>
-                                                      </section>
-                                                    </div>}
-                                                  </main>
-                                                );
+      {deleteTarget && <div className="modal-backdrop" role="presentation">
+        <section className="modal-card confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-title">
+          <h2 className="panel-title" id="delete-title">O que deseja excluir?</h2>
+          <p>{deleteTarget.description} ? {money.format(deleteTarget.amount)} ? {formatDate(deleteTarget.date)}</p>
+          <p>Você pode remover apenas este item ou todas as ocorrências deste grupo.</p>
+          <div className="modal-actions">
+            <button className="button button-secondary" type="button" onClick={() => setDeleteTarget(null)}>Cancelar</button>
+            <button className="button button-danger" type="button" onClick={() => void removeEntry(deleteTarget)}>Excluir somente este</button>{deleteTarget.recurrenceGroup && <button className="button button-danger" type="button" onClick={() => void removeEntry(deleteTarget, true)}>Excluir grupo ({entries.filter((item) => item.recurrenceGroup === deleteTarget.recurrenceGroup).length})</button>}</div>
+        </section>
+      </div>}
+    </main>
+  );
 }
 
 function FinancialCharts({ entries }: { entries: Entry[] }) {
@@ -1386,7 +1405,37 @@ function FilterPanel({
         <button type="button" className="button button-secondary" onClick={onClear}>Limpar filtros</button>
       </div>
       <div className="filter-grid">
-        <Field label="Mês (MM/AA)"><input className="input" type="text" inputMode="numeric" autoComplete="off" maxLength={5} placeholder="10/26" value={monthText} onChange={(event) => { const value = event.target.value.replace(/[^\d/]/g, '').slice(0, 5); setMonthText(value); const match = /^(0[1-9]|1[0-2])\/(\d{2})$/.exec(value); if (match) setMonth(`20${match[2]}-${match[1]}`); else if (!value) setMonth(''); }} /></Field>
+
+        <Field label="Mês (MM/AA)">
+          <input
+            className="input"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={5}
+            placeholder="10/26"
+            value={monthText}
+            onChange={(event) => {
+              const digits = event.target.value.replace(/\D/g, '').slice(0, 4);
+
+              const value =
+                digits.length > 2
+                  ? `${digits.slice(0, 2)}/${digits.slice(2)}`
+                  : digits;
+
+              setMonthText(value);
+
+              const match = /^(0[1-9]|1[0-2])\/(\d{2})$/.exec(value);
+
+              if (match) {
+                setMonth(`20${match[2]}-${match[1]}`);
+              } else {
+                setMonth('');
+              }
+            }}
+          />
+        </Field>
+
         <Field label="Data inicial"><input className="input" type="date" value={from} onChange={(event) => setFrom(event.target.value)} /></Field>
         <Field label="Data final"><input className="input" type="date" value={to} onChange={(event) => setTo(event.target.value)} /></Field>
         <Field label="Situação"><select className="select" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">Todas</option><option value="PAID">Pago / recebido</option><option value="PENDING">Pendente</option></select></Field>
@@ -1444,7 +1493,7 @@ function EntryTable({
               <td>{item.category || 'Geral'}{item.card && <small className="muted-block">{item.card.name}</small>}</td>
               <td>{item.entity === 'PHYSICAL' ? 'Pessoal' : 'Empresa'}</td>
               <td>{formatDate(item.date)}<small className="muted-block">Vence: {formatDate(item.dueDate)}</small></td>
-          <td>{onStatusChange ? <button className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'} status-toggle`} type="button" onClick={() => onStatusChange(item)} aria-label={`Alterar situação de ${item.description}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</button> : <span className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</span>}</td>
+              <td>{onStatusChange ? <button className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'} status-toggle`} type="button" onClick={() => onStatusChange(item)} aria-label={`Alterar situação de ${item.description}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</button> : <span className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</span>}</td>
               <td className={`table-number ${item.type === 'INCOME' ? 'type-income' : 'type-expense'}`}>{item.type === 'INCOME' ? '+' : '\u2212'}{money.format(item.amount)}</td>
               {!readOnly && (onEdit || onDelete) && <td><div className="row-actions">{onEdit && <button className="button button-secondary button-compact" type="button" onClick={() => onEdit(item)}>Editar</button>}{onDelete && <button className="button button-danger button-compact" type="button" onClick={() => onDelete(item)}>Excluir</button>}</div></td>}
             </tr>
