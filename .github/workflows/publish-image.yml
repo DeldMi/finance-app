@@ -12,15 +12,19 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   validate:
     name: Auditoria, tipos e build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - name: Baixar código
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Configurar Node.js
         uses: actions/setup-node@v4
@@ -49,6 +53,10 @@ jobs:
 
   docker:
     name: Publicar imagem Docker
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
     # Only publish images from pushes to main, never from PRs or the hardening branch.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
