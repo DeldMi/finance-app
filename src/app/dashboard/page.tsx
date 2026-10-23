@@ -111,7 +111,18 @@ function renderReportModel(
     totalExpenses: money.format(expenses),
     balance: money.format(balance),
     transactionsTable,
-    styles: model.css,
+    styles: `${model.css}
+
+@media print {
+  html,
+  body,
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}`,
   };
   const html = model.html.replace(/\{\{([a-zA-Z]+)\}\}/g, (placeholder, key: string) =>
     Object.hasOwn(values, key) ? values[key] : placeholder,
