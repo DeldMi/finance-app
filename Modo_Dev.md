@@ -36,6 +36,14 @@ npm run dev
 Abra <http://localhost:3000>. O primeiro acesso permite criar a conta; depois,
 use o e-mail e a senha cadastrados.
 
+## Convenções de interface
+
+- Reutilize a navegação lateral compartilhada em todas as páginas autenticadas, incluindo rotas novas.
+- Preserve o comportamento responsivo: recolhível/expansível no desktop e menu hambúrguer em telas pequenas.
+- Use `lucide-react` para todos os ícones da interface. Referência: <https://lucide.dev>.
+- Em tabelas financeiras, mantenha Data e Vencimento em colunas separadas; use `dueDate` para o vencimento e sua ordenação.
+- Ao mudar a arquitetura da navegação ou os padrões visuais, atualize também `AGENTS.md` e `docs/ARQUITETURA.md`.
+
 ## Validar e compilar
 
 ```powershell
