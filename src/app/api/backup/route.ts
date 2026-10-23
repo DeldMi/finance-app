@@ -159,7 +159,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await readLimitedJson(request);
     if (body?.version !== 1 || !body.data || typeof body.data !== 'object' || Array.isArray(body.data)) return NextResponse.json({ error: 'Arquivo de backup inválido ou incompatível.' }, { status: 400 });
-    const selected: (typeof tables)[number][] = Array.isArray(body.selected) ? [...new Set(body.selected.filter((key: unknown): key is (typeof tables)[number] => typeof key === 'string' && tables.includes(key as (typeof tables)[number]))] : [];
+    const selected: (typeof tables)[number][] = Array.isArray(body.selected)
+      ? Array.from(new Set(
+          body.selected.filter(
+            (key: unknown): key is (typeof tables)[number] =>
+              typeof key === 'string' && tables.includes(key as (typeof tables)[number]),
+          ),
+        ))
+      : [];
     if (!selected.length) return NextResponse.json({ error: 'Selecione ao menos um tipo de dado para restaurar.' }, { status: 400 });
     validateRows(body.data, selected);
 
