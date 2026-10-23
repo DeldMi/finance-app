@@ -131,6 +131,14 @@ export default function DashboardPage() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [theme, setTheme] = useState<Theme>('light');
   const [tab, setTab] = useState<Tab>('overview');
+
+  useEffect(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    const validTabs: Tab[] = ['overview', 'entries', 'cards', 'institutions', 'categories', 'reports', 'settings'];
+    if (requestedTab && validTabs.includes(requestedTab as Tab)) {
+      setTab(requestedTab as Tab);
+    }
+  }, []);
   const [financeInstances, setFinanceInstances] = useState<FinanceInstance[]>([]);
   const [activeFinanceId, setActiveFinanceId] = useState('');
   const [newFinanceName, setNewFinanceName] = useState('');
