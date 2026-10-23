@@ -10,8 +10,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const directory = request.nextUrl.searchParams.get('directory')?.trim() || '';
   const name = (await params).name;
   const prefix = `meu-financeiro-${access.financeId}-`;
-  if (!directory || !path.isAbsolute(directory) || directory.length > 500 || name !== path.basename(name) || !name.startsWith(prefix) || !name.endsWith('.json')) {
-    return NextResponse.json({ error: 'Arquivo de backup inválido.' }, { status: 400 });
+  const allowedDirectory = path.resolve(process.env.BACKUP_DIR || '/bkp');
+  if (!directory || !path.isAbsolute(directory) || directory.length > 500 || path.resolve(directory) !== allowedDirectory || name !== path.basename(name) || !name.startsWith(prefix) || !name.endsWith('.json')) {
+    return NextResponse.json({ error: 'Arquivo de backup inválido ou diretório não permitido.' }, { status: 400 });
   }
   try {
     const snapshot: unknown = JSON.parse(await readFile(path.join(path.resolve(directory), name), 'utf8'));

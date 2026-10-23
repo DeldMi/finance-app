@@ -6,7 +6,9 @@ import { checkRateLimit, getRequestIp } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
   const ip = getRequestIp(request.headers);
-  if (!checkRateLimit(`register:${ip}`, 5, 60 * 60 * 1000)) {
+  // Enforce per-IP throttling only when the deployment has explicitly configured a trusted proxy.
+  // If no trusted client IP is available, the reverse proxy/API gateway must enforce this limit.
+  if (ip && !checkRateLimit(`register:${ip}`, 5, 60 * 60 * 1000)) {
     return NextResponse.json({ error: 'Muitas tentativas de cadastro. Tente novamente mais tarde.' }, { status: 429 });
   }
   let body: unknown;

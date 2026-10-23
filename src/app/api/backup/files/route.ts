@@ -8,8 +8,9 @@ export async function GET(request: NextRequest) {
   if ('response' in access) return access.response;
   if (access.role !== 'ADMIN') return NextResponse.json({ error: 'Somente administradores podem acessar backups no servidor.' }, { status: 403 });
   const directory = request.nextUrl.searchParams.get('directory')?.trim() || '';
-  if (!directory || directory.length > 500 || !path.isAbsolute(directory)) {
-    return NextResponse.json({ error: 'Informe um caminho absoluto válido.' }, { status: 400 });
+  const allowedDirectory = path.resolve(process.env.BACKUP_DIR || '/bkp');
+  if (!directory || directory.length > 500 || !path.isAbsolute(directory) || path.resolve(directory) !== allowedDirectory) {
+    return NextResponse.json({ error: 'O caminho deve corresponder ao diretório de backups configurado no servidor.' }, { status: 400 });
   }
   try {
     const prefix = `meu-financeiro-${access.financeId}-`;
