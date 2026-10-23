@@ -44,6 +44,7 @@ type Entry = {
   entity: EntityType;
   category: string;
   date: string;
+  maturity: string;
   dueDate?: string | null;
   status: 'PAID' | 'PENDING';
   recurrence?: string | null;
@@ -78,7 +79,7 @@ type ReportModel = { name: string; html: string; css: string };
 // type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
 type Tab = DashboardTab;
 
-type SortKey = 'description' | 'category' | 'entity' | 'date' | 'dueDate' | 'status' | 'amount';
+type SortKey = 'description' | 'category' | 'entity' | 'date' | 'maturity' | 'dueDate' | 'status' | 'amount';
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR').format(new Date(value)) : '—';
 const isoToday = new Date().toISOString().slice(0, 10);
@@ -1476,7 +1477,8 @@ function EntryTable({
           {heading('description', 'Descrição')}
           {heading('category', 'Categoria / cartão')}
           {heading('entity', 'Setor')}
-          {heading('date', 'Data / vencimento')}
+          {heading('date', 'Data')}
+          {heading('maturity', 'Vencimento')} {/**<< adicione essa nova estutura, nova coluna separando a data do vencimento. */}
           {heading('status', 'Situação')}
           {heading('amount', 'Valor', true)}
           {!readOnly && <th scope="col">Ações</th>}
