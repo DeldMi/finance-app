@@ -79,7 +79,7 @@ type ReportModel = { name: string; html: string; css: string };
 // type Tab = 'overview' | 'entries' | 'cards' | 'institutions' | 'categories' | 'reports' | 'settings';
 type Tab = DashboardTab;
 
-type SortKey = 'description' | 'category' | 'entity' | 'date' | 'maturity' | 'dueDate' | 'status' | 'amount';
+type SortKey = 'description' | 'category' | 'entity' | 'date' | 'dueDate' | 'status' | 'amount';
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const formatDate = (value?: string | null) => value ? new Intl.DateTimeFormat('pt-BR').format(new Date(value)) : '—';
 const isoToday = new Date().toISOString().slice(0, 10);
@@ -1478,7 +1478,7 @@ function EntryTable({
           {heading('category', 'Categoria / cartão')}
           {heading('entity', 'Setor')}
           {heading('date', 'Data')}
-          {heading('maturity', 'Vencimento')} {/**<< adicione essa nova estutura, nova coluna separando a data do vencimento. */}
+          {heading('dueDate', 'Vencimento')}
           {heading('status', 'Situação')}
           {heading('amount', 'Valor', true)}
           {!readOnly && <th scope="col">Ações</th>}
@@ -1494,13 +1494,14 @@ function EntryTable({
               </td>
               <td>{item.category || 'Geral'}{item.card && <small className="muted-block">{item.card.name}</small>}</td>
               <td>{item.entity === 'PHYSICAL' ? 'Pessoal' : 'Empresa'}</td>
-              <td>{formatDate(item.date)}<small className="muted-block">Vence: {formatDate(item.dueDate)}</small></td>
+              <td>{formatDate(item.date)}</td>
+              <td>{formatDate(item.dueDate)}</td>
               <td>{onStatusChange ? <button className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'} status-toggle`} type="button" onClick={() => onStatusChange(item)} aria-label={`Alterar situação de ${item.description}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</button> : <span className={`status-pill ${item.status === 'PAID' ? 'status-paid' : 'status-pending'}`}>{item.status === 'PAID' ? 'Pago' : 'Pendente'}</span>}</td>
               <td className={`table-number ${item.type === 'INCOME' ? 'type-income' : 'type-expense'}`}>{item.type === 'INCOME' ? '+' : '\u2212'}{money.format(item.amount)}</td>
               {!readOnly && (onEdit || onDelete) && <td><div className="row-actions">{onEdit && <button className="button button-secondary button-compact" type="button" onClick={() => onEdit(item)}>Editar</button>}{onDelete && <button className="button button-danger button-compact" type="button" onClick={() => onDelete(item)}>Excluir</button>}</div></td>}
             </tr>
           ))}
-          {!entries.length && <tr><td className="empty-state" colSpan={readOnly || (!onEdit && !onDelete) ? 6 : 7}>Nenhum lançamento para este filtro.</td></tr>}
+          {!entries.length && <tr><td className="empty-state" colSpan={readOnly || (!onEdit && !onDelete) ? 7 : 8}>Nenhum lançamento para este filtro.</td></tr>}
         </tbody>
       </table>
     </div>
