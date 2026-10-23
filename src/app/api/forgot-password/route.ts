@@ -1,15 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { checkRateLimit } from '@/lib/rate-limit';
+import { checkRateLimit, getRequestIp } from '@/lib/rate-limit';
 
 const GENERIC_MESSAGE = 'Se o e-mail estiver cadastrado, você receberá instruções para recuperar a senha.';
 
 export async function POST(request: Request) {
-  const forwarded = request.headers.get('x-forwarded-for');
-  const ip = process.env.TRUST_PROXY_HEADERS === 'true'
-    ? forwarded?.split(',')[0]?.trim()
-    : null;
+  const ip = getRequestIp(request.headers);
   if (ip && !checkRateLimit(`forgot-ip:${ip}`, 10, 15 * 60 * 1000)) {
     return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 200 });
   }
@@ -29,6 +26,10 @@ export async function POST(request: Request) {
     ? body.email.trim().toLowerCase()
     : '';
   if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 200 });
+  }
+
+  if (!checkRateLimit(`forgot-account:${email}`, 3, 60 * 60 * 1000)) {
     return NextResponse.json({ message: GENERIC_MESSAGE }, { status: 200 });
   }
 
