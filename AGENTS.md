@@ -21,6 +21,16 @@ simulação temporária de compras comparada ao saldo.
 - `prisma/`: schema SQLite e migrações versionadas.
 - `docs/`: arquitetura, uso e deploy.
 
+## Padrões obrigatórios de interface
+
+- Todas as páginas autenticadas do painel devem compartilhar a navegação principal; não criar menus paralelos nem remover a navegação de rotas como o planejador de compras.
+- Em telas de computador, o menu lateral deve permitir recolher e expandir por ação explícita do usuário, com estado visual claro e acessível.
+- Em telas pequenas/celulares, a navegação deve virar menu hambúrguer, abrir/fechar pelo botão e fechar após selecionar uma rota; evitar conteúdo coberto e rolagem horizontal.
+- Reutilizar o componente de navegação compartilhado em vez de duplicar sua estrutura.
+- Todos os ícones da interface devem usar a biblioteca Lucide pelo pacote React oficial `lucide-react` (https://lucide.dev). Não usar bibliotecas concorrentes, emojis como ícones funcionais ou desenhos de ícones feitos manualmente.
+- Ícones decorativos devem ser ocultados de leitores de tela; controles que exibem apenas ícones precisam de nome acessível.
+- Nas tabelas de lançamentos, exibir Data e Vencimento em colunas separadas. Vencimento usa o campo `dueDate` e a ordenação correspondente.
+
 ## Regras importantes
 
 - Todas as consultas e gravações de transações devem ser limitadas ao usuário
