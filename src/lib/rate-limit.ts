@@ -28,8 +28,24 @@ export function checkRateLimit(key: string, limit: number, windowMs: number): bo
   return true;
 }
 
-export function getRequestIp(headers: Headers): string {
-  // Use forwarding headers only when the application is behind a trusted proxy.
-  const forwarded = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-  return forwarded || headers.get('x-real-ip') || 'unknown';
+/**
+ * Forwarding headers are attacker-controlled unless a trusted reverse proxy
+ * overwrites them. Only use them when the deployment explicitly opts in.
+ * If trust is not configured, callers should apply account-based throttling
+ * and let the proxy/gateway enforce per-client IP limits.
+ */
+export function getRequestIp(headers: Headers | Record<string, string | string[] | undefined>): string | null {
+  if (process.env.TRUST_PROXY_HEADERS !== 'true') return null;
+
+  const get = (name: string): string | undefined => {
+    if (headers instanceof Headers) return headers.get(name) ?? undefined;
+    const value = headers[name] ?? headers[name.toLowerCase()];
+    return Array.isArray(value) ? value[0] : value;
+  };
+
+  const forwarded = get('x-forwarded-for')?.split(',')[0]?.trim();
+  const realIp = get('x-real-ip')?.trim();
+  const candidate = forwarded || realIp;
+  if (!candidate || candidate.length > 64 || /[^0-9a-fA-F:.]/.test(candidate)) return null;
+  return candidate;
 }
