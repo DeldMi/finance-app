@@ -98,8 +98,9 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await readLimitedJson(request);
     const directory = typeof body?.directory === 'string' ? body.directory.trim() : '';
-    if (!directory || directory.length > 500 || !path.isAbsolute(directory)) {
-      return NextResponse.json({ error: 'Informe um caminho absoluto válido, como /bkp.' }, { status: 400 });
+    const allowedDirectory = path.resolve(process.env.BACKUP_DIR || '/bkp');
+    if (!directory || directory.length > 500 || !path.isAbsolute(directory) || path.resolve(directory) !== allowedDirectory) {
+      return NextResponse.json({ error: 'O caminho deve corresponder ao diretório de backups configurado no servidor.' }, { status: 400 });
     }
     if (body?.snapshot?.version !== 1 || !body.snapshot.data || typeof body.snapshot.data !== 'object') {
       return NextResponse.json({ error: 'Os dados do backup estão inválidos.' }, { status: 400 });
