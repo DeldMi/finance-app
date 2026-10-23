@@ -63,15 +63,7 @@ export default function ShoppingPlannerPage() {
       </header>
 
 
-      {/* <DashboardMenu
-        tab={tab}
-        setTab={setTab}
-        onSettingsClick={() => {
-          if (session?.user.role === 'ADMIN') {
-            void loadAdminUsers();
-          }
-        }}
-      /> */}
+      <DashboardMenu tab={tab} setTab={setTab} />
 
 
       {error && <p className="form-error" role="alert">{error}</p>}
