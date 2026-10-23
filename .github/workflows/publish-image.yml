@@ -34,7 +34,6 @@ jobs:
       - name: Auditar dependências de produção
         run: npm audit --omit=dev --audit-level=high
 
-      # Generate both Prisma clients before TypeScript checks import them.
       - name: Gerar clientes Prisma
         run: npm run db:generate
 
@@ -43,6 +42,10 @@ jobs:
 
       - name: Validar build de produção
         run: npm run build
+        env:
+          # Temporary SQLite URL used only while Next.js evaluates API routes at build time.
+          DATABASE_URL: file:/tmp/finance-build.db
+          FINANCE_DATABASE_DIR: /tmp/finance-build-user-finances
 
   docker:
     name: Publicar imagem Docker
