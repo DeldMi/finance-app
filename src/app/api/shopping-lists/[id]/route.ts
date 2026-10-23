@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { getOwnerFinanceDatabase } from '@/lib/finance-database';
 import { requireFinancePermission } from '@/lib/permissions';
 
-type Context = { params: { id: string } };
+type Context = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Context) {
   const access = await requireFinancePermission('edit');
@@ -28,7 +28,7 @@ export async function PUT(request: Request, { params }: Context) {
   }
 
   const current = await db.shoppingList.findFirst({
-    where: { id: params.id, financeId: access.financeId },
+    where: { id: (await params).id, financeId: access.financeId },
   });
   if (!current) return NextResponse.json({ error: 'Lista não encontrada.' }, { status: 404 });
 
@@ -52,7 +52,7 @@ export async function DELETE(_request: Request, { params }: Context) {
   const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
   const result = await db.shoppingList.deleteMany({
-    where: { id: params.id, financeId: access.financeId },
+    where: { id: (await params).id, financeId: access.financeId },
   });
   if (!result.count) return NextResponse.json({ error: 'Lista não encontrada.' }, { status: 404 });
 

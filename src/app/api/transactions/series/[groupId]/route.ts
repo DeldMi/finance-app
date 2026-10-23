@@ -3,7 +3,7 @@ import { getOwnerFinanceDatabase } from '@/lib/finance-database';
 import { requireFinancePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, TRANSACTION_TYPES, type EntityType, type TransactionType } from '@/lib/types';
 
-type Context = { params: { groupId: string } };
+type Context = { params: Promise<{ groupId: string }> };
 export async function PUT(request: Request, { params }: Context) {
   const access = await requireFinancePermission('edit');
   if ('response' in access) return access.response;
@@ -24,12 +24,12 @@ export async function PUT(request: Request, { params }: Context) {
   try {
     if (cardId && !await db.paymentCard.findFirst({ where: { id: cardId, financeId: access.financeId } })) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
     if (accountId && !await db.financialInstitution.findFirst({ where: { id: accountId, financeId: access.financeId } })) return NextResponse.json({ error: 'Conta bancária inválida.' }, { status: 400 });
-    const rows = await db.transaction.findMany({ where: { financeId: access.financeId, recurrenceGroup: params.groupId }, select: { id: true, date: true, dueDate: true } });
+    const rows = await db.transaction.findMany({ where: { financeId: access.financeId, recurrenceGroup: (await params).groupId }, select: { id: true, date: true, dueDate: true } });
     if (!rows.length) return NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });
     const today = new Date().toISOString().slice(0, 10);
     const futureIds = rows.filter(row => row.date.toISOString().slice(0, 10) > today || Boolean(row.dueDate && row.dueDate.toISOString().slice(0, 10) > today)).map(row => row.id);
     const result = await db.$transaction(async (tx) => {
-      const updated = await tx.transaction.updateMany({ where: { financeId: access.financeId, recurrenceGroup: params.groupId }, data: { description, amount, category, type: String(type), entity: String(entity), cardId, accountId, purpose, autoDebit: body.autoDebit === true, isSubscription: body.isSubscription === true, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, 300) || null : null, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
+      const updated = await tx.transaction.updateMany({ where: { financeId: access.financeId, recurrenceGroup: (await params).groupId }, data: { description, amount, category, type: String(type), entity: String(entity), cardId, accountId, purpose, autoDebit: body.autoDebit === true, isSubscription: body.isSubscription === true, notes: typeof body.notes === 'string' ? body.notes.trim().slice(0, 300) || null : null, status: String(body.status), paidAt: body.status === 'PAID' ? new Date() : null } });
       if (body.status === 'PAID' && futureIds.length) await tx.transaction.updateMany({ where: { financeId: access.financeId, id: { in: futureIds } }, data: { status: 'PENDING', paidAt: null } });
       return updated;
     });
@@ -43,7 +43,7 @@ export async function DELETE(_request: Request, { params }: Context) {
   const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const userId = access.userId;
   try {
-    const result = await db.transaction.deleteMany({ where: { financeId: access.financeId, recurrenceGroup: params.groupId } });
+    const result = await db.transaction.deleteMany({ where: { financeId: access.financeId, recurrenceGroup: (await params).groupId } });
     return result.count ? NextResponse.json({ success: true, deleted: result.count }) : NextResponse.json({ error: 'Série não encontrada.' }, { status: 404 });
   } catch { return NextResponse.json({ error: 'Erro ao excluir a série.' }, { status: 500 }); }
 }

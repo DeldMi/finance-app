@@ -9,7 +9,7 @@ services:
       DATABASE_URL: file:/app/prisma/prod.db
       FINANCE_DATABASE_DIR: /app/prisma/user-finances
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?Defina NEXTAUTH_SECRET no arquivo .env}
-      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?Defina NEXTAUTH_URL com a URL publica HTTPS em producao}
     volumes:
       - sqlite_data:/app/prisma
       - backup_data:/bkp

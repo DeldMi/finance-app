@@ -2,11 +2,20 @@ import { hash } from 'bcryptjs';
 import { Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { checkRateLimit, getRequestIp } from '@/lib/rate-limit';
 
 export async function POST(request: Request) {
+  const ip = getRequestIp(request.headers);
+  if (!checkRateLimit(`register:${ip}`, 5, 60 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Muitas tentativas de cadastro. Tente novamente mais tarde.' }, { status: 429 });
+  }
   let body: unknown;
   try {
-    body = await request.json();
+    const raw = await request.text();
+    if (Buffer.byteLength(raw, 'utf8') > 16 * 1024) {
+      return NextResponse.json({ error: 'A requisição excede o limite permitido.' }, { status: 413 });
+    }
+    body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: 'Corpo JSON inválido.' }, { status: 400 });
   }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getOwnerFinanceDatabase } from '@/lib/finance-database';
 import { requireFinancePermission } from '@/lib/permissions';
 
-type Context = { params: { id: string } };
+type Context = { params: Promise<{ id: string }> };
 const ALLOWED_UNITS = ['un', 'kg', 'g', 'L', 'mL', 'm³'] as const;
 
 function validateItem(data: Record<string, unknown>) {
@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: Context) {
   if ('response' in access) return access.response;
   const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const ownedList = await db.shoppingList.findFirst({
-    where: { id: params.id, financeId: access.financeId },
+    where: { id: (await params).id, financeId: access.financeId },
     select: { id: true },
   });
   if (!ownedList) return NextResponse.json({ error: 'Lista não encontrada.' }, { status: 404 });

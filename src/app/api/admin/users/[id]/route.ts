@@ -3,13 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/permissions';
 
 const allowedPermissions = ['view', 'create', 'edit', 'delete'];
-type Context = { params: { id: string } };
+type Context = { params: Promise<{ id: string }> };
 
 export async function PUT(request: Request, { params }: Context) {
   const access = await requireAdmin();
   if ('response' in access) return access.response;
 
-  if (params.id === access.userId) {
+  if ((await params).id === access.userId) {
     return NextResponse.json({ error: 'Não é possível alterar as próprias permissões.' }, { status: 400 });
   }
 
@@ -32,7 +32,7 @@ export async function PUT(request: Request, { params }: Context) {
   }
 
   const updated = await prisma.user.updateMany({
-    where: { id: params.id },
+    where: { id: (await params).id },
     data: { role: String(role), permissions: JSON.stringify(Array.from(new Set(permissions))) },
   });
 

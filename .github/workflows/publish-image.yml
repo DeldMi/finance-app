@@ -1,9 +1,13 @@
-name: Publicar imagem Docker
+name: Validar e publicar imagem Docker
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - main
+      - security/production-hardening
   workflow_dispatch:
 
 permissions:
@@ -11,7 +15,43 @@ permissions:
   packages: write
 
 jobs:
+  validate:
+    name: Auditoria, tipos e build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Auditar dependências de produção
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Gerar clientes Prisma
+        run: npm run db:generate
+
+      - name: Verificar tipos TypeScript
+        run: npm run typecheck
+
+      - name: Validar build de produção
+        run: npm run build
+        env:
+          # Temporary SQLite URL used only while Next.js evaluates API routes at build time.
+          DATABASE_URL: file:/tmp/finance-build.db
+          FINANCE_DATABASE_DIR: /tmp/finance-build-user-finances
+
   docker:
+    name: Publicar imagem Docker
+    # Only publish images from pushes to main, never from PRs or the hardening branch.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - name: Baixar código

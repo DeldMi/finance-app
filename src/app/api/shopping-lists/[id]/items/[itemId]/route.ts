@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getOwnerFinanceDatabase } from '@/lib/finance-database';
 import { requireFinancePermission } from '@/lib/permissions';
 
-type Context = { params: { id: string; itemId: string } };
+type Context = { params: Promise<{ id: string; itemId: string }> };
 const ALLOWED_UNITS = ['un', 'kg', 'g', 'L', 'mL', 'm³'] as const;
 
 function validateItem(value: unknown) {
@@ -31,7 +31,7 @@ export async function PUT(request: Request, { params }: Context) {
   if (!data) return NextResponse.json({ error: 'Confira produto, quantidade, unidade e preço.' }, { status: 400 });
 
   const result = await db.shoppingListItem.updateMany({
-    where: { id: params.itemId, listId: params.id, list: { financeId: access.financeId } },
+    where: { id: (await params).itemId, listId: (await params).id, list: { financeId: access.financeId } },
     data,
   });
   if (!result.count) return NextResponse.json({ error: 'Item não encontrado.' }, { status: 404 });
@@ -43,7 +43,7 @@ export async function DELETE(_request: Request, { params }: Context) {
   if ('response' in access) return access.response;
   const db = await getOwnerFinanceDatabase(access.financeOwnerId);
   const result = await db.shoppingListItem.deleteMany({
-    where: { id: params.itemId, listId: params.id, list: { financeId: access.financeId } },
+    where: { id: (await params).itemId, listId: (await params).id, list: { financeId: access.financeId } },
   });
   if (!result.count) return NextResponse.json({ error: 'Item não encontrado.' }, { status: 404 });
   return NextResponse.json({ success: true });
