@@ -17,6 +17,24 @@ jobs:
       - name: Baixar código
         uses: actions/checkout@v4
 
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Auditar dependências de produção
+        run: npm audit --omit=dev --audit-level=high
+
+      - name: Verificar tipos TypeScript
+        run: npm run typecheck
+
+      - name: Validar build de produção
+        run: npm run build
+
       - name: Configurar Buildx
         uses: docker/setup-buildx-action@v3
 
