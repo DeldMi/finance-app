@@ -39,7 +39,7 @@ COPY --from=builder /app/scripts/log-tee.cjs ./scripts/log-tee.cjs
 # The app only needs write access to its persistent data and backup directories.
 RUN addgroup -S app && adduser -S app -G app \
   && mkdir -p /app/prisma/user-finances /app/prisma/logs /bkp \
-  && chown -R app:app /app/prisma /bkp
+  && chown -R app:app /app/prisma /app/.next /bkp
 USER app
 
 ENV HOSTNAME=0.0.0.0
