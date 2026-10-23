@@ -6,8 +6,9 @@ import { checkRateLimit, getRequestIp } from '@/lib/rate-limit';
 
 const FAILED_ATTEMPTS_BEFORE_LOCK = 5;
 const BASE_LOCK_MS = 60 * 1000;
-const MAX_LOCK_LEVEL = 10;
+const MAX_LOCK_LEVEL = 16;
 const MAX_LOCK_MS = 24 * 60 * 60 * 1000;
+const DUMMY_PASSWORD_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -29,7 +30,7 @@ export const authOptions: NextAuthOptions = {
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
           // Keep timing somewhat consistent and do not disclose whether the account exists.
-          await compare(password, '$2a$12$C6UzMDM.H6dfI/f/IKcEe.4kFfR1lR5kN2z5dXQjv7Y3l8W5y8a7K');
+          await compare(password, DUMMY_PASSWORD_HASH);
           return null;
         }
 
@@ -67,6 +68,8 @@ export const authOptions: NextAuthOptions = {
           });
           return null;
         }
+
+        if (user.role === 'BLOCKED') return null;
 
         await prisma.user.update({
           where: { id: user.id },
