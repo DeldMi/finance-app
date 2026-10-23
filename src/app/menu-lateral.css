@@ -147,7 +147,7 @@ main.app-shell {
   margin-right: 24px !important;
 }
 
-main.app-shell:has(~ .section-nav-collapsed) {
+main.app-shell:has(.section-nav-collapsed) {
   margin-left: calc(var(--menu-collapsed-width) + 40px) !important;
 }
 
