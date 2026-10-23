@@ -16,6 +16,9 @@ compras antes de assumir uma nova despesa.
   projetado; a lista é temporária e não altera o extrato.
 - Banco de dados SQLite via Prisma ORM.
 - Interface responsiva e acessível em português brasileiro.
+- Menu lateral compartilhado: recolhível no desktop e convertido em menu hambúrguer em celulares.
+- Ícones padronizados com Lucide via `lucide-react`.
+- Lançamentos com colunas separadas para Data e Vencimento.
 
 ## Tecnologias
 
@@ -23,6 +26,7 @@ compras antes de assumir uma nova despesa.
 - NextAuth.js com provedor de credenciais.
 - Prisma ORM e SQLite.
 - Docker Compose para executar em container.
+- Lucide (`lucide-react`) como biblioteca padrão de ícones.
 
 ## Começar
 
