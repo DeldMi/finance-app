@@ -1,14 +1,8 @@
 'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import PurchaseSimulator from '@/components/PurchaseSimulator';
-
-
-import DashboardMenu, {
-  type DashboardTab,
-} from '@/components/DashboardMenu';
-
+import DashboardMenu, { type DashboardTab } from '@/components/DashboardMenu';
 
 type Account = { id: string; entity: string; initialBalance: number };
 type Transaction = {
