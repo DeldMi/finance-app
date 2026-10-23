@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
         if (!email || !password) return null;
         const forwarded = req.headers?.['x-forwarded-for'];
         const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded)?.split(',')[0]?.trim() || 'unknown';
-        if (!checkRateLimit(`login:${ip}:${email}`, 8, 15 * 60 * 1000)) return null;
+        if (!checkRateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000) || !checkRateLimit(`login:${ip}:${email}`, 8, 15 * 60 * 1000)) return null;
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || !(await compare(password, user.password))) return null;
