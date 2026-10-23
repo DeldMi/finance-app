@@ -154,10 +154,14 @@ main.app-shell:has(.section-nav-collapsed) {
 main.page-shell {
   box-sizing: border-box;
   width: auto;
-  max-width: 1200px;
+  max-width: none;
   min-width: 0;
-  margin: 0 auto;
+  margin: 0 24px 0 calc(var(--menu-width) + 40px);
   padding: 28px;
+}
+
+main.page-shell:has(.section-nav-collapsed) {
+  margin-left: calc(var(--menu-collapsed-width) + 40px);
 }
 
 .shopping-page-header {
