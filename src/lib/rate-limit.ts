@@ -15,6 +15,11 @@ export function checkRateLimit(key: string, limit: number, windowMs: number): bo
       for (const [bucketKey, bucket] of buckets) {
         if (bucket.resetAt <= now) buckets.delete(bucketKey);
       }
+      while (buckets.size > 10_000) {
+        const oldestKey = buckets.keys().next().value;
+        if (oldestKey === undefined) break;
+        buckets.delete(oldestKey);
+      }
     }
     return true;
   }
