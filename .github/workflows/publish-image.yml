@@ -35,6 +35,9 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Verificar diff e configuração do workflow
+        run: git diff --check
+
       - name: Auditar dependências de produção
         run: npm audit --omit=dev --audit-level=high
 
