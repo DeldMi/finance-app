@@ -29,6 +29,15 @@ produção manualmente. O cliente Prisma resolve URLs SQLite locais relativas a
 partir da pasta `prisma/`, mantendo o mesmo arquivo utilizado pelas migrações;
 deploys em container usam o caminho absoluto persistido no volume.
 
+## Navegação e identidade visual
+
+- A navegação principal deve ser um componente compartilhado entre as páginas autenticadas do painel.
+- Desktop: menu lateral recolhível/expansível pelo usuário.
+- Celulares e telas estreitas: menu lateral convertido em menu hambúrguer acessível, que abre e fecha e permite navegar pelas rotas.
+- Todas as rotas do painel, inclusive Planeje antes de comprar, devem manter acesso à navegação principal.
+- Lucide é a biblioteca padrão de ícones. Em React, importar ícones de `lucide-react`; não misturar bibliotecas nem usar emojis ou SVGs manuais como substitutos.
+- A tabela de lançamentos exibe Data e Vencimento separadamente: Data representa `date`, Vencimento representa `dueDate`.
+
 ## Interface e cálculo
 
 O CSS global define variáveis de cor, componentes semânticos e breakpoints. O
