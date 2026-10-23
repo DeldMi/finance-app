@@ -33,16 +33,15 @@ export async function middleware(request: NextRequest) {
 
   // NextAuth has its own CSRF protection. For other state-changing API requests,
   // reject a supplied Origin that does not match the configured public origin.
-  // Same-origin browser requests are checked; non-browser clients that omit Origin
-  // remain subject to authentication and server-side authorization checks.
+  // Mutating API calls must include an Origin matching the configured public URL.
   if (
     pathname.startsWith('/api/') &&
     !pathname.startsWith('/api/auth/') &&
     MUTATING_METHODS.has(request.method)
   ) {
     const origin = request.headers.get('origin');
-    if (origin && !isAllowedOrigin(request, origin)) {
-      return NextResponse.json({ error: 'Origem da requisição não permitida.' }, { status: 403 });
+    if (!origin || !isAllowedOrigin(request, origin)) {
+      return NextResponse.json({ error: 'Origem ausente ou não permitida.' }, { status: 403 });
     }
   }
 
