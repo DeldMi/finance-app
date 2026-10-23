@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { useEffect, useState } from 'react';
 import PurchaseSimulator from '@/components/PurchaseSimulator';
 import DashboardMenu, { type DashboardTab } from '@/components/DashboardMenu';
