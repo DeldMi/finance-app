@@ -7,7 +7,6 @@ on:
   push:
     branches:
       - main
-      - security/production-hardening
   workflow_dispatch:
 
 permissions:
