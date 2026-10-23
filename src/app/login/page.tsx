@@ -212,6 +212,12 @@ function LoginForm() {
 
 
 
+            {!isRegistering && (
+              <p className="login-switch" style={{ textAlign: 'right', marginTop: '-8px' }}>
+                <a className="link-button" href="/forgot-password">Esqueci minha senha</a>
+              </p>
+            )}
+
             <button className="button button-primary" type="submit" disabled={busy}>
               {busy
                 ? 'Aguarde...'
