@@ -21,7 +21,7 @@ export async function requireFinancePermission(permission: Permission): Promise<
   if (!userId) return { response: NextResponse.json({ error: 'Faça login para continuar.' }, { status: 401 }) };
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (!user || user.role === 'BLOCKED') return { response: NextResponse.json({ error: 'A conta não tem acesso liberado.' }, { status: 403 }) };
-  const financeId = cookies().get('active-finance')?.value;
+  const financeId = (await cookies()).get('active-finance')?.value;
   if (!financeId) return { response: NextResponse.json({ error: 'Selecione uma instância financeira.' }, { status: 400 }) };
   const membership = await prisma.financeMember.findUnique({ where: { financeId_userId: { financeId, userId } }, include: { finance: { select: { ownerId: true, entity: true } } } });
   if (!membership) return { response: NextResponse.json({ error: 'Você não tem acesso a esta instância financeira.' }, { status: 403 }) };

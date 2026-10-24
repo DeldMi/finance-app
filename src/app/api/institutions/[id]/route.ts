@@ -3,7 +3,7 @@ import { getOwnerFinanceDatabase } from '@/lib/finance-database';
 import { requireFinancePermission } from '@/lib/permissions';
 import { ENTITY_TYPES, type EntityType } from '@/lib/types';
 
-type Context = { params: { id: string } };
+type Context = { params: Promise<{ id: string }> };
 const ACCOUNT_TYPES = ['CHECKING', 'SAVINGS', 'CASH', 'WALLET', 'OTHER'];
 
 /** Update a bank account or cash wallet owned by the current user. */
@@ -27,7 +27,7 @@ export async function PUT(request: Request, { params }: Context) {
     return NextResponse.json({ error: 'Confira nome, instituição, tipo, perfil e saldo inicial.' }, { status: 400 });
   }
 
-  const account = await db.financialInstitution.findFirst({ where: { id: params.id, financeId: access.financeId } });
+  const account = await db.financialInstitution.findFirst({ where: { id: (await params).id, financeId: access.financeId } });
   if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
 
   const updated = await db.financialInstitution.update({
@@ -43,7 +43,7 @@ export async function DELETE(_request: Request, { params }: Context) {
   if ('response' in access) return access.response;
   const db = await getOwnerFinanceDatabase(access.financeOwnerId);
 
-  const result = await db.financialInstitution.deleteMany({ where: { id: params.id, financeId: access.financeId } });
+  const result = await db.financialInstitution.deleteMany({ where: { id: (await params).id, financeId: access.financeId } });
   return result.count
     ? NextResponse.json({ success: true })
     : NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
