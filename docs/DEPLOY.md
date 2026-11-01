@@ -73,6 +73,29 @@ quando tiver certeza de que quer apagar os dados.
 - O SQLite persiste no volume, mas não deve ser compartilhado entre múltiplos
   servidores sem uma estratégia explícita de armazenamento e concorrência.
 
+
+## Bloqueio de login e recuperação de senha
+
+Após cinco senhas incorretas para uma conta, o login é bloqueado por 1 minuto.
+Novas sequências de cinco falhas aumentam o bloqueio progressivamente (2, 4, 8,
+16 minutos e assim por diante, até 24 horas). O bloqueio é persistido no SQLite;
+a contagem regressiva exibida no navegador é apenas uma indicação visual, não a
+proteção de segurança em si.
+
+Para habilitar recuperação de senha por e-mail, configure no ambiente de produção:
+
+- `RESEND_API_KEY`: chave privada do Resend.
+- `RESEND_FROM_EMAIL`: remetente de um domínio verificado no Resend.
+- `NEXTAUTH_URL`: URL pública completa da aplicação, com HTTPS em produção.
+- `TRUST_PROXY_HEADERS=true` somente quando o proxy reverso remove os cabeçalhos
+  enviados pelo cliente e escreve os valores corretos de IP. Caso contrário,
+  mantenha `false` e configure limites de requisição no proxy/gateway.
+
+O link de recuperação é válido por 30 minutos, pode ser usado uma única vez e
+sua informação secreta não é armazenada em texto puro no banco. Não registre
+tokens em logs. Depois de configurar o e-mail, teste o fluxo em uma conta de
+teste antes de disponibilizar aos usuários.
+
 ## GitHub
 
 O `.gitignore` evita publicar `.env`, dependências, builds e banco local.

@@ -2,7 +2,7 @@
 
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 
 // import { Eye, EyeOff } from 'lucide-react';
 
@@ -17,6 +17,21 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockLevel, setLockLevel] = useState(0);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+
+  useEffect(() => {
+    if (secondsRemaining <= 0) return;
+    const timer = window.setTimeout(() => setSecondsRemaining((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [secondsRemaining]);
+
+  function formatWait(seconds: number) {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return minutes > 0 ? `${minutes} min ${remainingSeconds.toString().padStart(2, '0')} s` : `${remainingSeconds} s`;
+  }
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -48,8 +63,21 @@ function LoginForm() {
         redirect: false,
       });
       if (!result || result.error) {
-        throw new Error('E-mail ou senha incorretos.');
+        const nextAttempts = failedAttempts + 1;
+        if (nextAttempts >= 5) {
+          const waitSeconds = Math.min(60 * (2 ** lockLevel), 24 * 60 * 60);
+          setFailedAttempts(0);
+          setLockLevel((level) => Math.min(level + 1, 16));
+          setSecondsRemaining(waitSeconds);
+          setError(`Muitas tentativas incorretas. Aguarde ${formatWait(waitSeconds)} antes de tentar novamente.`);
+        } else {
+          setFailedAttempts(nextAttempts);
+          setError(`E-mail ou senha incorretos. Tentativa ${nextAttempts} de 5.`);
+        }
+        return;
       }
+      setFailedAttempts(0);
+      setLockLevel(0);
 
       const callbackUrl = searchParams.get('callbackUrl');
       const destination =
@@ -212,10 +240,18 @@ function LoginForm() {
 
 
 
-            <button className="button button-primary" type="submit" disabled={busy}>
-              {busy
-                ? 'Aguarde...'
-                : isRegistering
+            {!isRegistering && (
+              <p className="login-switch" style={{ textAlign: 'right', marginTop: '-8px' }}>
+                <a className="link-button" href="/forgot-password">Esqueci minha senha</a>
+              </p>
+            )}
+
+            <button className="button button-primary" type="submit" disabled={busy || secondsRemaining > 0}>
+              {secondsRemaining > 0
+                ? `Tente novamente em ${formatWait(secondsRemaining)}`
+                : busy
+                  ? 'Aguarde...'
+                  : isRegistering
                   ? 'Criar conta e entrar'
                   : 'Entrar no painel'}
             </button>

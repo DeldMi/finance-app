@@ -14,6 +14,10 @@ model User {
   password           String
   role               String                 @default("BLOCKED")
   permissions        String                 @default("[]")
+  failedLoginAttempts Int                  @default(0)
+  loginLockLevel     Int                   @default(0)
+  loginLockedUntil   DateTime?
+  passwordResetTokens PasswordResetToken[]
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
   transactions       Transaction[]
@@ -167,4 +171,17 @@ model Transaction {
   notes             String?
 
   @@index([financeId])
+}
+
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
