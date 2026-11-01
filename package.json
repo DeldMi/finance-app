@@ -13,7 +13,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate && prisma generate --schema prisma/finance-schema.prisma",
-    "admin:grant": "node scripts/grant-admin.cjs"
+    "admin:grant": "node scripts/grant-admin.cjs",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
     "@prisma/client": "^5.20.0",
