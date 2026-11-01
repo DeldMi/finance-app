@@ -34,6 +34,9 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Testes automatizados de segurança
+        run: npm test
+
       - name: Auditar dependências de produção
         run: npm audit --omit=dev --audit-level=high
 
