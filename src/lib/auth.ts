@@ -22,6 +22,11 @@ export const authOptions: NextAuthOptions = {
         const email = credentials?.email?.trim().toLowerCase();
         const password = credentials?.password;
         if (!email || !password) return null;
+        const ip = getRequestIp(req.headers ?? {});
+        // Only trust client IPs when the deployment explicitly trusts its reverse proxy.
+        if (ip && !checkRateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000)) return null;
+        // Always throttle by normalized account identifier so spoofed IP headers cannot bypass the limit.
+        if (!checkRateLimit(`login-account:${email}`, 8, 15 * 60 * 1000)) return null;
 
         const ip = getRequestIp(req.headers ?? {});
         if (ip && !checkRateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000)) return null;

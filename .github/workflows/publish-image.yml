@@ -36,6 +36,8 @@ jobs:
 
       - name: Testes automatizados de segurança
         run: npm test
+      - name: Verificar diff e configuração do workflow
+        run: git diff --check
 
       - name: Auditar dependências de produção
         run: npm audit --omit=dev --audit-level=high
