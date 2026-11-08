@@ -1,6 +1,7 @@
 import { getToken } from 'next-auth/jwt';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { createLoginRedirectUrl, isDashboardPath } from '@/lib/security-guards.mjs';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -12,28 +13,24 @@ function isAllowedOrigin(request: NextRequest, originHeader: string): boolean {
     return false;
   }
 
-  const allowedOrigins = new Set<string>();
   const configuredUrl = process.env.NEXTAUTH_URL;
   if (configuredUrl) {
     try {
-      allowedOrigins.add(new URL(configuredUrl).origin);
+      const publicUrl = new URL(configuredUrl);
+      if (process.env.NODE_ENV === 'production' && publicUrl.protocol !== 'https:') return false;
+      return origin === publicUrl.origin;
     } catch {
-      // An invalid configured public URL must not expand the allowlist.
       return false;
     }
-  } else if (process.env.NODE_ENV !== 'production') {
-    allowedOrigins.add(request.nextUrl.origin);
   }
 
-  return allowedOrigins.has(origin);
+  // In production, never infer a trusted origin from proxy-controlled headers.
+  return process.env.NODE_ENV !== 'production' && origin === request.nextUrl.origin;
 }
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // NextAuth has its own CSRF protection. For other state-changing API requests,
-  // reject a supplied Origin that does not match the configured public origin.
-  // Mutating API calls must include an Origin matching the configured public URL.
   if (
     pathname.startsWith('/api/') &&
     !pathname.startsWith('/api/auth/') &&
@@ -45,7 +42,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (!pathname.startsWith('/dashboard/')) return NextResponse.next();
+  if (!isDashboardPath(pathname)) return NextResponse.next();
 
   const token = await getToken({
     req: request,
@@ -53,8 +50,12 @@ export async function middleware(request: NextRequest) {
   });
 
   if (!token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+    let loginUrl: URL;
+    try {
+      loginUrl = createLoginRedirectUrl(pathname, process.env.NEXTAUTH_URL, request.url, process.env.NODE_ENV);
+    } catch {
+      return NextResponse.json({ error: 'Configuração pública de autenticação inválida.' }, { status: 500 });
+    }
     return NextResponse.redirect(loginUrl);
   }
 

@@ -34,6 +34,8 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Testes automatizados de segurança
+        run: npm test
       - name: Verificar diff e configuração do workflow
         run: git diff --check
 
